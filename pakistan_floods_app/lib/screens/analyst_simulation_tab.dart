@@ -84,7 +84,7 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
       setState(() {
         _isProcessing = false;
         if (res['success'] == true) {
-          _predictedAffected = double.tryParse(res['predicted_affected']?.toString() ?? '');
+          _predictedAffected = double.tryParse((res['predicted_affected'] ?? res['predicted_affected_population'])?.toString() ?? '');
         } else {
           // Fallback simulation: Linear sum model based on verified factors (R²=0.63 calibration)
           _predictedAffected = (_housesSwamped * 5.8) +
