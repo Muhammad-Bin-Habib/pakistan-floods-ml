@@ -58,6 +58,28 @@ metrics_cache = {
     "rmse": None
 }
 
+# Regional Populations (2023 Census data) for capping projections sane-ceilings
+REGIONAL_POPULATIONS = {
+    'Punjab': 127688922,
+    'Sindh': 55696147,
+    'Khyber Pakhtunkhwa': 40856097,
+    'KPK': 40856097,
+    'Balochistan': 14894402,
+    'FATA': 5000000,
+    'AJ&K': 4000000,
+    'Gilgit-Baltistan': 2000000,
+    'Default': 100000000
+}
+
+def get_population_ceiling(region_name):
+    if not region_name:
+        return REGIONAL_POPULATIONS['Default']
+    r_clean = region_name.strip().lower()
+    for k, v in REGIONAL_POPULATIONS.items():
+        if k.lower() in r_clean or r_clean in k.lower():
+            return v
+    return REGIONAL_POPULATIONS['Default']
+
 
 def apply_log_transform(inputs):
     """Log1p-transform the skewed features in a raw input list, matching train.py."""
@@ -67,7 +89,7 @@ def apply_log_transform(inputs):
     return transformed
 
 
-def predict_from_inputs(inputs, scaler, model):
+def predict_from_inputs(inputs, scaler, model, region_name='Default'):
     """
     Take a raw (untransformed) feature list in FEATURES order, apply the same
     log1p transform used at training time, scale it, predict in log-space,
@@ -76,7 +98,15 @@ def predict_from_inputs(inputs, scaler, model):
     inputs_log = apply_log_transform(inputs)
     scaled = scaler.transform([inputs_log])
     prediction_log = model.predict(scaled)[0]
+    
+    # Clip log prediction to avoid extreme extrapolation artifacts
+    prediction_log = np.clip(prediction_log, 0, 17.0)
     prediction = float(np.expm1(prediction_log))
+    
+    # Cap at a realistic maximum fraction (80%) of regional population
+    ceil = get_population_ceiling(region_name) * 0.80
+    prediction = min(prediction, ceil)
+    
     return max(0.0, prediction)
 
 
@@ -148,6 +178,10 @@ def predict():
         if not data:
             return jsonify({'success': False, 'message': 'No input data provided'}), 400
 
+        # Default Year if omitted in simulation inputs
+        if 'Year' not in data or data['Year'] is None:
+            data['Year'] = 2026
+
         required_fields = ['Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
                            'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged']
 
@@ -166,7 +200,8 @@ def predict():
             model = pickle.load(f)
 
         # Log-transform, scale, predict, and invert back to real units
-        prediction = predict_from_inputs(inputs, scaler, model)
+        region_name = data.get('Region', 'Default')
+        prediction = predict_from_inputs(inputs, scaler, model, region_name=region_name)
 
         return jsonify({
             'success': True,
@@ -253,20 +288,66 @@ def force_retrain():
 
 
 def build_future_rows(baseline, future_years):
-    """Shared helper: build the 3%/yr growth-scenario rows used by projections/report/email."""
+    """Shared helper: build the growth-scenario rows with monsoon cycles and population ceilings."""
     future_rows = []
+    region_name = baseline.get('Region', 'Sindh')
+    max_pop = get_population_ceiling(region_name)
+    
     for i, yr in enumerate(future_years):
-        scale = 1 + (i * 0.03)  # 3% annual growth scenario
+        # 4-year cycle of monsoon variation + 1% annual climate change trend
+        cycle = 1.0 + 0.15 * np.sin(2 * np.pi * (yr - 2023) / 4)
+        scale = (1 + (i * 0.01)) * cycle
+        
         future_rows.append({
             'Year': yr,
-            'Total_deaths': int(baseline['Total_deaths'] * scale),
-            'Total_injured': int(baseline['Total_injured'] * scale),
+            'Total_deaths': min(int(baseline['Total_deaths'] * scale), max(1, int(max_pop * 0.005))),  # Cap deaths at 0.5% of pop
+            'Total_injured': min(int(baseline['Total_injured'] * scale), max(1, int(max_pop * 0.01))), # Cap injured at 1.0% of pop
             'Roads_damaged_km': float(baseline['Roads_damaged_km'] * scale),
             'Bridges_damaged': int(baseline['Bridges_damaged'] * scale),
-            'Houses_damaged': int(baseline['Houses_damaged'] * scale),
+            'Houses_damaged': min(int(baseline['Houses_damaged'] * scale), max(1, int(max_pop * 0.10))),  # Cap houses at 10% of pop
             'Livestock_damaged': int(baseline['Livestock_damaged'] * scale),
         })
     return future_rows
+
+
+def generate_projections_dataframe(region_data, region_name):
+    baseline = region_data.sort_values('Year').iloc[-1]
+    future_years = list(range(2023, 2031))
+    future_rows = build_future_rows(baseline, future_years)
+    
+    load_or_train_model()
+    with open(SCALER_PATH, 'rb') as f:
+        scaler = pickle.load(f)
+    with open(MODEL_PATH, 'rb') as f:
+        model = pickle.load(f)
+
+    rows = []
+    for row in future_rows:
+        inputs = [row[f] for f in FEATURES]
+        pred = predict_from_inputs(inputs, scaler, model, region_name=baseline.get('Region', region_name))
+        
+        min_aff = round(pred * 0.85)
+        max_aff = round(pred * 1.15)
+        
+        rows.append({
+            'Region': baseline['Region'],
+            'Year': int(row['Year']),
+            'Proj_Fatalities': int(row['Total_deaths']),
+            'Proj_Injured': int(row['Total_injured']),
+            'Proj_Roads_Damaged_km': round(row['Roads_damaged_km'], 1),
+            'Proj_Bridges_Damaged': int(row['Bridges_damaged']),
+            'Proj_Houses_Damaged': int(row['Houses_damaged']),
+            'Proj_Livestock_Lost': int(row['Livestock_damaged']),
+            'Est_Affected_Min': min_aff,
+            'Est_Affected_Max': max_aff,
+            'Tents_Req_Min': round(min_aff / 6.0),
+            'Tents_Req_Max': round(max_aff / 6.0),
+            'Water_Liters_Min': round(min_aff * 15),
+            'Water_Liters_Max': round(max_aff * 15),
+            'MedicalComps_Req_Min': round(min_aff / 80.0),
+            'MedicalComps_Req_Max': round(max_aff / 80.0)
+        })
+    return pd.DataFrame(rows), baseline
 
 
 @app.route('/api/projections', methods=['GET'])
@@ -282,28 +363,17 @@ def get_projections():
             if region_data.empty:
                 return jsonify({'success': False, 'message': f'Region {region} or fallback Sindh not found in data'}), 404
 
-        baseline = region_data.sort_values('Year').iloc[-1]
-
-        future_years = list(range(2023, 2031))
-        future_rows = build_future_rows(baseline, future_years)
-        future_df = pd.DataFrame(future_rows)
-
-        load_or_train_model()
-        with open(SCALER_PATH, 'rb') as f:
-            scaler = pickle.load(f)
-        with open(MODEL_PATH, 'rb') as f:
-            model = pickle.load(f)
+        report_df, baseline = generate_projections_dataframe(region_data, region)
 
         projections_list = []
-        for idx, row in future_df.iterrows():
-            inputs = [row[f] for f in FEATURES]
-            pred = predict_from_inputs(inputs, scaler, model)
+        for idx, row in report_df.iterrows():
+            avg_pred = (row['Est_Affected_Min'] + row['Est_Affected_Max']) / 2
             projections_list.append({
                 'year': int(row['Year']),
-                'predicted_affected': round(pred, 2),
-                'estimated_deaths': int(row['Total_deaths']),
-                'estimated_injured': int(row['Total_injured']),
-                'estimated_houses_damaged': int(row['Houses_damaged'])
+                'predicted_affected': round(avg_pred, 2),
+                'estimated_deaths': int(row['Proj_Fatalities']),
+                'estimated_injured': int(row['Proj_Injured']),
+                'estimated_houses_damaged': int(row['Proj_Houses_Damaged'])
             })
 
         return jsonify({
@@ -409,53 +479,8 @@ def export_report():
             if region_data.empty:
                 return jsonify({'success': False, 'message': f'Region {region} not found.'}), 404
 
-        baseline = region_data.sort_values('Year').iloc[-1]
+        report_df, _ = generate_projections_dataframe(region_data, region)
 
-        future_years = list(range(2023, 2031))
-        rows = []
-
-        load_or_train_model()
-        with open(SCALER_PATH, 'rb') as f:
-            scaler = pickle.load(f)
-        with open(MODEL_PATH, 'rb') as f:
-            model = pickle.load(f)
-
-        for i, yr in enumerate(future_years):
-            scale = 1 + (i * 0.03)
-            inputs = [
-                float(yr),
-                float(baseline['Total_deaths'] * scale),
-                float(baseline['Total_injured'] * scale),
-                float(baseline['Roads_damaged_km'] * scale),
-                float(baseline['Bridges_damaged'] * scale),
-                float(baseline['Houses_damaged'] * scale),
-                float(baseline['Livestock_damaged'] * scale)
-            ]
-            pred = predict_from_inputs(inputs, scaler, model)
-
-            min_aff = round(pred * 0.85)
-            max_aff = round(pred * 1.15)
-
-            rows.append({
-                'Region': baseline['Region'],
-                'Year': yr,
-                'Proj_Fatalities': round(baseline['Total_deaths'] * scale),
-                'Proj_Injured': round(baseline['Total_injured'] * scale),
-                'Proj_Roads_Damaged_km': round(baseline['Roads_damaged_km'] * scale, 1),
-                'Proj_Bridges_Damaged': round(baseline['Bridges_damaged'] * scale),
-                'Proj_Houses_Damaged': round(baseline['Houses_damaged'] * scale),
-                'Proj_Livestock_Lost': round(baseline['Livestock_damaged'] * scale),
-                'Est_Affected_Min': min_aff,
-                'Est_Affected_Max': max_aff,
-                'Tents_Req_Min': round(min_aff / 6.0),
-                'Tents_Req_Max': round(max_aff / 6.0),
-                'Water_Liters_Min': round(min_aff * 15),
-                'Water_Liters_Max': round(max_aff * 15),
-                'MedicalComps_Req_Min': round(min_aff / 80.0),
-                'MedicalComps_Req_Max': round(max_aff / 80.0)
-            })
-
-        report_df = pd.DataFrame(rows)
         report_csv_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.csv')
         report_df.to_csv(report_csv_path, index=False)
 
@@ -555,52 +580,7 @@ def email_export():
                 if region_data.empty:
                     return jsonify({'success': False, 'message': f'Region {region} not registered.'}), 404
 
-            baseline = region_data.sort_values('Year').iloc[-1]
-            future_years = list(range(2023, 2031))
-            rows = []
-
-            load_or_train_model()
-            with open(SCALER_PATH, 'rb') as f:
-                scaler = pickle.load(f)
-            with open(MODEL_PATH, 'rb') as f:
-                model = pickle.load(f)
-
-            for i, yr in enumerate(future_years):
-                scale = 1 + (i * 0.03)
-                inputs = [
-                    float(yr),
-                    float(baseline['Total_deaths'] * scale),
-                    float(baseline['Total_injured'] * scale),
-                    float(baseline['Roads_damaged_km'] * scale),
-                    float(baseline['Bridges_damaged'] * scale),
-                    float(baseline['Houses_damaged'] * scale),
-                    float(baseline['Livestock_damaged'] * scale)
-                ]
-                pred = predict_from_inputs(inputs, scaler, model)
-
-                min_aff = round(pred * 0.85)
-                max_aff = round(pred * 1.15)
-
-                rows.append({
-                    'Region': baseline['Region'],
-                    'Year': yr,
-                    'Proj_Fatalities': round(baseline['Total_deaths'] * scale),
-                    'Proj_Injured': round(baseline['Total_injured'] * scale),
-                    'Proj_Roads_Damaged_km': round(baseline['Roads_damaged_km'] * scale, 1),
-                    'Proj_Bridges_Damaged': round(baseline['Bridges_damaged'] * scale),
-                    'Proj_Houses_Damaged': round(baseline['Houses_damaged'] * scale),
-                    'Proj_Livestock_Lost': round(baseline['Livestock_damaged'] * scale),
-                    'Est_Affected_Min': min_aff,
-                    'Est_Affected_Max': max_aff,
-                    'Tents_Req_Min': round(min_aff / 6.0),
-                    'Tents_Req_Max': round(max_aff / 6.0),
-                    'Water_Liters_Min': round(min_aff * 15),
-                    'Water_Liters_Max': round(max_aff * 15),
-                    'MedicalComps_Req_Min': round(min_aff / 80.0),
-                    'MedicalComps_Req_Max': round(max_aff / 80.0)
-                })
-
-            report_df = pd.DataFrame(rows)
+            report_df, baseline = generate_projections_dataframe(region_data, region)
 
             if file_format == 'pdf':
                 load_or_train_model()

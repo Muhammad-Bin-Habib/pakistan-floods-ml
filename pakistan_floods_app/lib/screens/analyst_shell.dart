@@ -278,7 +278,33 @@ class _AnalystShellState extends State<AnalystShell> {
                 ],
               ),
             ),
-
+            Container(
+              width: double.infinity,
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: const BoxDecoration(
+                color: Color(0xFFFFF9E6),
+                border: Border(
+                  bottom: BorderSide(color: Color(0xFFFFE0B2), width: 1.0),
+                ),
+              ),
+              child: const Row(
+                children: [
+                   Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 14),
+                   SizedBox(width: 8),
+                   Expanded(
+                     child: Text(
+                       'PROTOTYPE / ESTIMATION ESTIMATOR DISCLAIMER: This system is a predictive simulation tool. Calculations represent machine learning estimates only and should not be used as the sole basis for high-stakes operational planning or direct emergency dispatch. Actual flood impacts may deviate significantly.',
+                       style: TextStyle(
+                         fontSize: 9,
+                         fontWeight: FontWeight.normal,
+                         color: Color(0xFF92400E),
+                         height: 1.3,
+                       ),
+                     ),
+                   ),
+                ],
+              ),
+            ),
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,

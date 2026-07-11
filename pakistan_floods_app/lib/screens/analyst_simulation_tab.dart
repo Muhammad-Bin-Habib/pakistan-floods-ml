@@ -13,8 +13,11 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
   final _formKey = GlobalKey<FormState>();
 
   // Estimator fields
+  double _simulationYear = 2026;
+  String _selectedRegion = 'Sindh';
   double _housesSwamped = 2200;
   double _totalFatalities = 45;
+  double _totalInjured = 120;
   double _roadsDestroyed = 180;
   double _bridgesBlown = 6;
   double _livestockLosses = 1400;
@@ -25,11 +28,14 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
   // Active calibration bounds preset
   String _activePreset = 'Baseline';
 
-  void _loadPreset(String presetName, double hs, double f, double rd, double bb, double ls) {
+  void _loadPreset(String presetName, String region, double year, double hs, double f, double injured, double rd, double bb, double ls) {
     setState(() {
       _activePreset = presetName;
+      _selectedRegion = region;
+      _simulationYear = year;
       _housesSwamped = hs;
       _totalFatalities = f;
+      _totalInjured = injured;
       _roadsDestroyed = rd;
       _bridgesBlown = bb;
       _livestockLosses = ls;
@@ -62,11 +68,14 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
     final ip = AppState().serverIp;
     
     final payload = {
-      'houses_damaged': _housesSwamped,
-      'total_deaths': _totalFatalities,
-      'roads_damaged': _roadsDestroyed,
-      'bridges_destroyed': _bridgesBlown,
-      'livestock_lost': _livestockLosses,
+      'Year': _simulationYear.toInt(),
+      'Region': _selectedRegion,
+      'Total_deaths': _totalFatalities.toInt(),
+      'Total_injured': _totalInjured.toInt(),
+      'Roads_damaged_km': _roadsDestroyed,
+      'Bridges_damaged': _bridgesBlown.toInt(),
+      'Houses_damaged': _housesSwamped.toInt(),
+      'Livestock_damaged': _livestockLosses.toInt(),
     };
 
     final res = await ApiService.predict(ip, payload);
@@ -116,13 +125,13 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildPresetChip('Baseline Swell', 2200, 45, 180, 6, 1400),
+                _buildPresetChip('Baseline Swell', 'Sindh', 2026, 2200, 45, 120, 180, 6, 1400),
                 const SizedBox(width: 8),
-                _buildPresetChip('Monsoon High Vector', 9800, 245, 620, 18, 5600),
+                _buildPresetChip('Monsoon High Vector', 'Sindh', 2026, 9800, 245, 650, 620, 18, 5600),
                 const SizedBox(width: 8),
-                _buildPresetChip('Flash Flood Surge', 14500, 480, 890, 45, 12000),
+                _buildPresetChip('Flash Flood Surge', 'Balochistan', 2026, 14500, 480, 1200, 890, 45, 12000),
                 const SizedBox(width: 8),
-                _buildPresetChip('Glacier Breaches (GB/KP)', 850, 20, 75, 12, 450),
+                _buildPresetChip('Glacier Breaches (GB/KP)', 'KP', 2026, 850, 20, 60, 75, 12, 450),
               ],
             ),
           ),
@@ -160,6 +169,53 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
                   Row(
                     children: [
                       Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            const Text(
+                              'Simulation Region',
+                              style: TextStyle(fontSize: 9, color: Color(0xFF475569), fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            ),
+                            const SizedBox(height: 6),
+                            DropdownButtonFormField<String>(
+                              key: ValueKey('$_activePreset-region-$_selectedRegion'),
+                              value: _selectedRegion,
+                              decoration: const InputDecoration(
+                                filled: true,
+                                fillColor: Color(0xFFF8FAFC),
+                              ),
+                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
+                              items: const [
+                                DropdownMenuItem(value: 'Sindh', child: Text('Sindh (47.8M Ceiling)')),
+                                DropdownMenuItem(value: 'Punjab', child: Text('Punjab (110.0M Ceiling)')),
+                                DropdownMenuItem(value: 'KP', child: Text('KP (35.5M Ceiling)')),
+                                DropdownMenuItem(value: 'Balochistan', child: Text('Balochistan (12.3M Ceiling)')),
+                              ],
+                              onChanged: (val) {
+                                if (val != null) {
+                                  setState(() {
+                                    _selectedRegion = val;
+                                  });
+                                }
+                              },
+                            ),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildInputField(
+                          label: 'Simulation Year',
+                          initialVal: _simulationYear,
+                          onSave: (v) => _simulationYear = v,
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                      Expanded(
                         child: _buildInputField(
                           label: 'Houses Swamped (H_D)',
                           initialVal: _housesSwamped,
@@ -181,12 +237,24 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
                     children: [
                       Expanded(
                         child: _buildInputField(
+                          label: 'Total Injured (T_I)',
+                          initialVal: _totalInjured,
+                          onSave: (v) => _totalInjured = v,
+                        ),
+                      ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildInputField(
                           label: 'Road Systems (km) (R_D)',
                           initialVal: _roadsDestroyed,
                           onSave: (v) => _roadsDestroyed = v,
                         ),
                       ),
-                      const SizedBox(width: 12),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
                       Expanded(
                         child: _buildInputField(
                           label: 'Bridges Blown (B_D)',
@@ -194,13 +262,15 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
                           onSave: (v) => _bridgesBlown = v,
                         ),
                       ),
+                      const SizedBox(width: 12),
+                      Expanded(
+                        child: _buildInputField(
+                          label: 'Livestock Lost (L_D)',
+                          initialVal: _livestockLosses,
+                          onSave: (v) => _livestockLosses = v,
+                        ),
+                      ),
                     ],
-                  ),
-                  const SizedBox(height: 12),
-                  _buildInputField(
-                    label: 'Livestock Dispersal Losses (L_D)',
-                    initialVal: _livestockLosses,
-                    onSave: (v) => _livestockLosses = v,
                   ),
                   const SizedBox(height: 20),
 
@@ -242,14 +312,14 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
     );
   }
 
-  Widget _buildPresetChip(String name, double hs, double f, double rd, double bb, double ls) {
+  Widget _buildPresetChip(String name, String region, double year, double hs, double f, double injured, double rd, double bb, double ls) {
     final bool isSelected = _activePreset == name;
     const prNavy = Color(0xFF1B365D);
     const borderSlate = Color(0xFFCBD5E1);
 
     return ActionChip(
       label: Text(name.toUpperCase()),
-      onPressed: () => _loadPreset(name, hs, f, rd, bb, ls),
+      onPressed: () => _loadPreset(name, region, year, hs, f, injured, rd, bb, ls),
       backgroundColor: isSelected ? prNavy : Colors.white,
       side: BorderSide(color: isSelected ? prNavy : borderSlate, width: 1.2),
       labelStyle: TextStyle(

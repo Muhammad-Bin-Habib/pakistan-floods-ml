@@ -1,7 +1,7 @@
 import pandas as pd
 import numpy as np
 from sklearn.linear_model import LinearRegression
-from sklearn.model_selection import train_test_split
+from sklearn.model_selection import train_test_split, KFold
 from sklearn.metrics import mean_squared_error, r2_score
 from sklearn.preprocessing import StandardScaler
 import pickle
@@ -29,22 +29,32 @@ def train_and_save_model(csv_path, model_dir):
     scaler = StandardScaler()
     X_scaled = scaler.fit_transform(X)
 
-    # Train test split
-    X_train, X_test, y_train, y_test = train_test_split(
-        X_scaled, y_log, test_size=0.2, random_state=42)
+    # Calculate stable metrics via 5-Fold Cross-Validation
+    kf = KFold(n_splits=5, shuffle=True, random_state=42)
+    r2_scores = []
+    rmse_scores = []
 
-    # Initialize and train linear regression model (learns in log-space)
+    for train_index, test_index in kf.split(X_scaled):
+        X_tr, X_te = X_scaled[train_index], X_scaled[test_index]
+        y_tr, y_te = y_log.iloc[train_index], y_log.iloc[test_index]
+
+        fold_model = LinearRegression()
+        fold_model.fit(X_tr, y_tr)
+        fold_pred_log = fold_model.predict(X_te)
+        fold_pred_log = np.clip(fold_pred_log, 0, 17.0) # cap log prediction to protect inverse scaling
+
+        fold_pred = np.expm1(fold_pred_log)
+        fold_te_orig = np.expm1(y_te)
+
+        r2_scores.append(r2_score(fold_te_orig, fold_pred))
+        rmse_scores.append(np.sqrt(mean_squared_error(fold_te_orig, fold_pred)))
+
+    r2 = np.mean(r2_scores)
+    rmse = np.mean(rmse_scores)
+
+    # Initialize and train final linear regression model on full dataset (learns in log-space)
     model = LinearRegression()
-    model.fit(X_train, y_train)
-    y_pred_log = model.predict(X_test)
-
-    # Convert predictions back to real-world scale before scoring, so R2/RMSE
-    # stay meaningful in terms of actual affected-population numbers.
-    y_pred = np.expm1(y_pred_log)
-    y_test_orig = np.expm1(y_test)
-
-    r2 = r2_score(y_test_orig, y_pred)
-    rmse = np.sqrt(mean_squared_error(y_test_orig, y_pred))
+    model.fit(X_scaled, y_log)
 
     # Save model and scaler
     os.makedirs(model_dir, exist_ok=True)

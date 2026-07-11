@@ -1,0 +1,25 @@
+# Python Bytecode and cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# Local environment variables
+.env
+backend/.env
+
+# Local ML model binary files
+backend/model.pkl
+backend/scaler.pkl
+
+# Python Virtual Environments
+venv/
+.venv/
+env/
+ENV/
+
+# Flutter build artifacts and dependencies
+.flutter-plugins
+.flutter-plugins-dependencies
+.dart_tool/
+build/
