@@ -87,40 +87,32 @@ pakistan-floods-ml/
     │   ├── services/
     │   │   └── api_service.dart     # HTTP connection mapping to backend
     │   └── screens/
-    │       ├── splash_screen.dart   # Brand and entry splash with transition
-    │       ├── onboarding_screen.dart # Interactive multi-page core highlights
-    │       ├── login_screen.dart    # Split portal for Citizens and Government Officials
-    │       ├── register_screen.dart # Profile signup for new citizens
-    │       ├── citizen_home.dart    # Home shell managing 5 bottom navigation tabs
-    │       ├── home_screen.dart     # Dynamic home dashboard, alert ribbons, quick dialers
-    │       ├── zones_screen.dart    # Region-wise Danger (Red/Orange) vs Safe (Green) zones
-    │       ├── safety_guide_screen.dart # Categorized Do's & Don'ts (Flood, Earthquakes, Landslides)
-    │       ├── prediction_screen.dart # Slider-based friendly flood impact estimator
-    │       ├── profile_screen.dart  # Manage contacts, access SOS portal and data contribution
-    │       ├── sos_screen.dart      # Pulsing SOS emergency warning & rapid response
-    │       ├── data_contribution_screen.dart # Citizens-sourced storm reporting
-    │       ├── gov_dashboard_screen.dart # NDMA government operations metrics & tech controls
-    │       ├── projections_screen.dart # Admin tools: Interactive fl_chart target simulation
-    │       ├── report_screen.dart   # Admin tools: Manual dataset appending & model tuning
-    │       └── predictor_screen.dart # Admin tools: Custom ML variable playground
-    └── pubspec.yaml                 # Flutter packages (http, fl_chart, intl)
+    │       ├── splash_screen.dart        # Brand and entry splash with NDMA theme transition
+    │       ├── login_screen.dart         # Secure credentials login for EOC administrators
+    │       ├── analyst_shell.dart        # Main workspace container hosting operational tabs
+    │       ├── analyst_overview_tab.dart # EOC Dashboard showing live emergency metrics
+    │       ├── analyst_simulation_tab.dart # Tweak precise metrics (bridges, roads) for predictions
+    │       ├── analyst_ingestion_tab.dart # Add regional reports & check retraining performance
+    │       ├── analyst_trends_tab.dart   # fl_chart charts, timelines & regional report Exporters
+    │       └── analyst_settings_tab.dart # Secure officer profile credentials (EOC) & email/download logs
+    ├── utils/
+    │   ├── file_helper.dart              # Cross-platform downloads dispatcher (Web / Mobile)
+    │   ├── file_helper_web.dart          # Web-specific Blob anchor download triggers
+    │   └── file_helper_stub.dart         # Platform compilation abstraction stubs
+    └── pubspec.yaml                      # Flutter packages (http, fl_chart, file_picker, etc.)
 ```
 
 ---
 
-## 🎯 Mobile App & Dashboard Features
+## 🎯 NDMA EOC Analyst Workspace Features
 
-- **Split-Role Experience**: Dedicated flows for citizens (evacuations, live forecasts, emergency hotlines, rapid SOS) and national government administrators/developers (NDMA hub).
-- **Onboarding and Splash Intro**: Fluid walkthrough of features (alerts, safety, predictor) before jumping into registration.
-- **Dynamic Connection Management**: Developers can view and update the backend's local server IP (e.g. `10.0.2.2:5000` for Android emulators or machine IP for physical devices) directly in the Tech parameters portal, with offline-resilient fallbacks.
-- **Interactive Predictive Analytics**:
-  - **Citizen Estimator**: Slide precipitation metrics and choose your province to instantly project population impact.
-  - **Developer Stats Playground**: Tweak precise metrics (bridge collapses, livestock casualties, road damage) to see fine-grained model outputs.
-- **Risk Projections Timeline (2023–2030)**: Explores projections under the 3% growth model via interactive charts powered by `fl_chart`.
-- **Incremental Retraining on New Data**: Submit real-time disaster reports from the field directly. The app appends details to `pakistan_floods.csv` and triggers the Flask backend to retrain the model, displaying updated R² and RMSE coefficients dynamically.
-- **Citizen SOS Rapid Response**: Pulsing alarm button submits current profile details to emergency lines together with a safety checklist.
-- **NDMA Operational Hub**: View KPI status cards, top priority regions based on high casualties, and retrain ML modules on the fly.
-- **Crisis Response & Safety Guidelines**: Integrated NDMA emergency control dials, Rescue 1122, and Edhi services alongside safety protocols for floods, earthquakes and landslides.
+- **Administrative EOC Board**: Unified operational dashboard showing critical alerts, livestock casualties, housing destruction, and hotlines links.
+- **Secure Officer Session Identification**: Set name, batch ID, station, and verified email. Updates update the app synchronously.
+- **Cross-Platform Native Downloads**: Interactive buttons export regional CSV logs directly into the device's downloads folder or triggers native browser file saves on Web.
+- **Auto-Email Dispatch System (with SMTP Sandbox)**: Email telemetry documents and regional risk tables straight from the app to the EOC officer's destination address.
+- **Interactive Calamity Simulator**: Slide bridges, road damages, and casualties to calculate expected displacements.
+- **Visual Province Risk Timelines (2023–2030)**: Live province-specific risk chart powered by `fl_chart`.
+- **Field Data Ingestion & Live Retraining**: Submit storm telemetry report sets. The app re-runs standard training models and updates R² and RMSE constants instantly.
 
 ---
 
