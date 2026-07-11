@@ -236,7 +236,7 @@ class _AnalystSettingsTabState extends State<AnalystSettingsTab> {
     }
   }
 
-  Future<void> _emailDataset() async {
+  Future<void> _emailDataset(String format) async {
     setState(() {
       _isEmailingDataset = true;
       _datasetOpResult = null;
@@ -249,6 +249,7 @@ class _AnalystSettingsTabState extends State<AnalystSettingsTab> {
         ip: ip,
         email: AppState().officerEmail,
         type: 'dataset',
+        format: format,
         officerName: AppState().userName.isNotEmpty ? AppState().userName : 'EOC Officer',
         batchId: AppState().officerBatchId,
       );
@@ -633,26 +634,50 @@ class _AnalystSettingsTabState extends State<AnalystSettingsTab> {
                   ],
                 ),
                 const SizedBox(height: 10),
-                SizedBox(
-                  width: double.infinity,
-                  height: 38,
-                  child: TextButton.icon(
-                    style: TextButton.styleFrom(
-                      backgroundColor: Colors.white,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(4),
-                        side: const BorderSide(color: borderSlate, width: 1.5),
+                Row(
+                  children: [
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: prNavy, width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            backgroundColor: Colors.white,
+                          ),
+                          onPressed: _isEmailingDataset ? null : () => _emailDataset('csv'),
+                          icon: _isEmailingDataset
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: prNavy))
+                              : const Icon(Icons.mail_outline_sharp, color: prNavy, size: 16),
+                          label: const Text(
+                            'EMAIL DATABASE CSV',
+                            style: TextStyle(color: prNavy, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                          ),
+                        ),
                       ),
                     ),
-                    onPressed: _isEmailingDataset ? null : _emailDataset,
-                    icon: _isEmailingDataset
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: prNavy))
-                        : const Icon(Icons.send_to_mobile, color: prNavy, size: 16),
-                    label: Text(
-                      'EMAIL TELEMETRY CSV TO: ${AppState().officerEmail.toUpperCase()}',
-                      style: const TextStyle(color: prNavy, fontSize: 9, fontWeight: FontWeight.bold),
+                    const SizedBox(width: 12),
+                    Expanded(
+                      child: SizedBox(
+                        height: 38,
+                        child: OutlinedButton.icon(
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: Color(0xFFC53030), width: 1.5),
+                            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                            backgroundColor: Colors.white,
+                          ),
+                          onPressed: _isEmailingDataset ? null : () => _emailDataset('pdf'),
+                          icon: _isEmailingDataset
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFC53030)))
+                              : const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFFC53030), size: 16),
+                          label: const Text(
+                            'EMAIL SUMMARY PDF',
+                            style: TextStyle(color: Color(0xFFC53030), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                          ),
+                        ),
+                      ),
                     ),
-                  ),
+                  ],
                 ),
                 if (_datasetOpResult != null) ...[
                   const SizedBox(height: 12),

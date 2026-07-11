@@ -194,6 +194,7 @@ class ApiService {
     required String ip,
     required String email,
     required String type, // 'dataset' or 'report'
+    String format = 'csv', // 'csv' or 'pdf'
     String region = 'Sindh',
     String officerName = 'EOC Officer',
     String batchId = 'EOC-UNKNOWN',
@@ -206,6 +207,7 @@ class ApiService {
         body: jsonEncode({
           'email': email,
           'type': type,
+          'format': format,
           'region': region,
           'officer_name': officerName,
           'batch_id': batchId,

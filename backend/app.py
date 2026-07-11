@@ -12,6 +12,27 @@ from email.mime.text import MIMEText
 from email.mime.base import MIMEBase
 from email import encoders
 from train import train_and_save_model
+from pdf_generator import generate_projection_pdf, generate_dataset_summary_pdf
+
+# Load local .env variables if present (for Windows/local startup bypass)
+def load_dotenv_fallback():
+    env_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), '.env')
+    if os.path.exists(env_path):
+        with open(env_path, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#'):
+                    if '=' in line:
+                        key, val = line.split('=', 1)
+                        os.environ[key.strip()] = val.strip().strip('"').strip("'")
+
+load_dotenv_fallback()
+
+print("==========================================")
+print(f"SMTP CONFIG DIAGNOSTIC:")
+print(f"  SMTP_USER: {os.environ.get('SMTP_USER')}")
+print(f"  SMTP_PASS presents: {bool(os.environ.get('SMTP_PASS'))}")
+print("==========================================")
 
 app = Flask(__name__)
 # Enable CORS for all routes so mobile/web app can communicate
@@ -415,10 +436,14 @@ def export_report():
 
 def send_email_with_attachment(to_email, subject, body, file_path, file_name):
     # Read environment config setup
+    load_dotenv_fallback()
+    
     smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port = int(os.environ.get('SMTP_PORT', '587'))
     smtp_user = os.environ.get('SMTP_USER', '')
     smtp_pass = os.environ.get('SMTP_PASS', '')
+    
+    print(f"[SMTP DISPATCH] Attempting send - user: {smtp_user}, pass length: {len(smtp_pass) if smtp_pass else 0}")
     
     # Sandbox/Test harness console fallback is activated when credentials are blank
     if not smtp_user or not smtp_pass:
@@ -464,20 +489,30 @@ def email_export():
         region = data.get('region', 'Sindh')
         officer_name = data.get('officer_name', 'EOC Officer')
         batch_id = data.get('batch_id', 'EOC-UNKNOWN')
+        file_format = data.get('format', 'csv') # 'csv' or 'pdf'
         
         if not to_email:
             return jsonify({'success': False, 'message': 'Missing recipient email address'}), 400
             
+        file_path = None
+        file_name = None
+        
         if export_type == 'dataset':
-            file_path = CSV_PATH
-            file_name = 'pakistan_floods_updated.csv'
+            if file_format == 'pdf':
+                file_path = os.path.join(BASE_DIR, 'pakistan_floods_telemetry_summary.pdf')
+                df_historical = pd.read_csv(CSV_PATH, encoding='latin1')
+                generate_dataset_summary_pdf(officer_name, batch_id, df_historical, file_path)
+                file_name = 'pakistan_floods_telemetry_summary.pdf'
+            else:
+                file_path = CSV_PATH
+                file_name = 'pakistan_floods_updated.csv'
             subject = 'FloodGuard Telemetry Database System Dispatch'
             body = (
                 f"NDMA Emergency Command Center Alert\n"
                 f"--------------------------------------------------\n"
                 f"Officer: {officer_name}\n"
                 f"Batch ID: {batch_id}\n\n"
-                f"This email contains the requested dynamic telemetry database update (CSV) "
+                f"This email contains the requested dynamic telemetry database update ({file_format.upper()}) "
                 f"from the central FloodGuard simulation command node.\n\n"
                 f"Respectfully,\nEOC Automated Disaster Intelligence Dispatch"
             )
@@ -536,16 +571,26 @@ def email_export():
                 })
                 
             report_df = pd.DataFrame(rows)
-            file_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.csv')
-            report_df.to_csv(file_path, index=False)
-            file_name = f'{region}_projections_report.csv'
+            
+            if file_format == 'pdf':
+                load_or_train_model()
+                model_r2 = metrics_cache.get('r2') or 0.63
+                file_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.pdf')
+                generate_projection_pdf(region, officer_name, batch_id, model_r2, report_df, file_path)
+                file_name = f'{region}_projections_report.pdf'
+            else:
+                file_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.csv')
+                report_df.to_csv(file_path, index=False)
+                file_name = f'{region}_projections_report.csv'
+                
             subject = f'FloodGuard Regional Risk Projections: {region.upper()}'
             body = (
                 f"NDMA Emergency Command Center Alert\n"
                 f"--------------------------------------------------\n"
                 f"Officer: {officer_name}\n"
                 f"Batch ID: {batch_id}\n"
-                f"Assessment Target: {region.upper()} (2023-2030)\n\n"
+                f"Assessment Target: {region.upper()} (2023-2030)\n"
+                f"File Format: {file_format.upper()}\n\n"
                 f"This email contains the requested regional calamity risk and relief material projections report "
                 f"for the territory of {region.upper()}.\n\n"
                 f"Respectfully,\nEOC Automated Disaster Intelligence Dispatch"
@@ -554,6 +599,15 @@ def email_export():
             return jsonify({'success': False, 'message': 'Unknown export type'}), 400
             
         success, message = send_email_with_attachment(to_email, subject, body, file_path, file_name)
+        
+        # Clean up temporary generated files
+        if file_path and os.path.exists(file_path):
+            if file_format == 'pdf' or export_type == 'report':
+                try:
+                    os.remove(file_path)
+                except:
+                    pass
+                    
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500

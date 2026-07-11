@@ -124,7 +124,7 @@ class _AnalystTrendsTabState extends State<AnalystTrendsTab> {
     }
   }
 
-  Future<void> _emailProjectionsReport() async {
+  Future<void> _emailProjectionsReport(String format) async {
     setState(() {
       _isEmailingReport = true;
     });
@@ -135,6 +135,7 @@ class _AnalystTrendsTabState extends State<AnalystTrendsTab> {
         ip: ip,
         email: AppState().officerEmail,
         type: 'report',
+        format: format,
         region: _selectedRegion,
         officerName: AppState().userName.isNotEmpty ? AppState().userName : 'EOC Officer',
         batchId: AppState().officerBatchId,
@@ -277,29 +278,49 @@ class _AnalystTrendsTabState extends State<AnalystTrendsTab> {
                         : const Icon(Icons.download_sharp, size: 16, color: prNavy),
                       label: const Text(
                         'DOWNLOAD REGIONAL REPORT CSV',
-                        style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: prNavy),
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: prNavy, letterSpacing: 0.5),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+              const SizedBox(height: 10),
+              Row(
+                children: [
+                  Expanded(
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: prNavy, width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
+                        backgroundColor: Colors.white,
+                        padding: const EdgeInsets.symmetric(vertical: 12),
+                      ),
+                      onPressed: _isEmailingReport ? null : () => _emailProjectionsReport('csv'),
+                      icon: _isEmailingReport 
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: prNavy))
+                        : const Icon(Icons.mail_outline_sharp, size: 16, color: prNavy),
+                      label: const Text(
+                        'EMAIL REPORT CSV',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: prNavy, letterSpacing: 0.5),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   Expanded(
-                    child: TextButton.icon(
-                      onPressed: _isEmailingReport ? null : _emailProjectionsReport,
-                      style: TextButton.styleFrom(
-                        padding: const EdgeInsets.symmetric(vertical: 12),
+                    child: OutlinedButton.icon(
+                      style: OutlinedButton.styleFrom(
+                        side: const BorderSide(color: Color(0xFFC53030), width: 1.5),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         backgroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(4),
-                          side: const BorderSide(color: borderSlate, width: 1.5),
-                        ),
+                        padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
+                      onPressed: _isEmailingReport ? null : () => _emailProjectionsReport('pdf'),
                       icon: _isEmailingReport 
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 2, color: prNavy))
-                        : const Icon(Icons.mail_outline_sharp, size: 16, color: prNavy),
-                      label: Text(
-                        'EMAIL CSV TO: ${AppState().officerEmail.toUpperCase()}',
-                        style: const TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: prNavy),
-                        overflow: TextOverflow.ellipsis,
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFC53030)))
+                        : const Icon(Icons.picture_as_pdf_outlined, size: 16, color: Color(0xFFC53030)),
+                      label: const Text(
+                        'EMAIL SUMMARY PDF',
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFC53030), letterSpacing: 0.5),
                       ),
                     ),
                   ),
