@@ -19,11 +19,25 @@ class ApiService {
     return '$serverIp/api';
   }
 
+  // Unified headers helper to bypass Ngrok browser security intercept warning pages
+  static Map<String, String> _jsonHeaders() {
+    return {
+      'Content-Type': 'application/json',
+      'ngrok-skip-browser-warning': 'true',
+    };
+  }
+
+  static Map<String, String> _getHeaders() {
+    return {
+      'ngrok-skip-browser-warning': 'true',
+    };
+  }
+
   // Get general ML stats and dataset summary
   static Future<Map<String, dynamic>> getStats(String ip) async {
     final url = Uri.parse('${getBaseUrl(ip)}/stats');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -38,7 +52,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getRegions(String ip) async {
     final url = Uri.parse('${getBaseUrl(ip)}/regions');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -55,7 +69,7 @@ class ApiService {
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: _jsonHeaders(),
         body: jsonEncode(inputs),
       ).timeout(const Duration(seconds: 10));
       
@@ -76,7 +90,7 @@ class ApiService {
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: _jsonHeaders(),
         body: jsonEncode(data),
       ).timeout(const Duration(seconds: 15));
       
@@ -95,7 +109,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getProjections(String ip, String region) async {
     final url = Uri.parse('${getBaseUrl(ip)}/projections?region=$region');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 10));
+      final response = await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 10));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -111,7 +125,7 @@ class ApiService {
   static Future<Map<String, dynamic>> getAlerts(String ip) async {
     final url = Uri.parse('${getBaseUrl(ip)}/alerts');
     try {
-      final response = await http.get(url).timeout(const Duration(seconds: 5));
+      final response = await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 5));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -126,7 +140,7 @@ class ApiService {
   static Future<Map<String, dynamic>> forceRetrain(String ip) async {
     final url = Uri.parse('${getBaseUrl(ip)}/retrain');
     try {
-      final response = await http.post(url).timeout(const Duration(seconds: 20));
+      final response = await http.post(url, headers: _getHeaders()).timeout(const Duration(seconds: 20));
       if (response.statusCode == 200) {
         return jsonDecode(response.body);
       } else {
@@ -140,13 +154,13 @@ class ApiService {
   // Download dataset CSV
   static Future<http.Response> downloadDataset(String ip) async {
     final url = Uri.parse('${getBaseUrl(ip)}/exports/dataset');
-    return await http.get(url).timeout(const Duration(seconds: 15));
+    return await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 15));
   }
 
   // Download simulation report CSV for a region
   static Future<http.Response> downloadReport(String ip, String region) async {
     final url = Uri.parse('${getBaseUrl(ip)}/exports/report?region=$region');
-    return await http.get(url).timeout(const Duration(seconds: 15));
+    return await http.get(url, headers: _getHeaders()).timeout(const Duration(seconds: 15));
   }
 
   // Upload/Import custom dataset CSV files
@@ -154,6 +168,7 @@ class ApiService {
     final url = Uri.parse('${getBaseUrl(ip)}/imports/dataset');
     try {
       final request = http.MultipartRequest('POST', url);
+      request.headers['ngrok-skip-browser-warning'] = 'true';
       request.files.add(
         http.MultipartFile.fromBytes(
           'file',
@@ -187,7 +202,7 @@ class ApiService {
     try {
       final response = await http.post(
         url,
-        headers: {'Content-Type': 'application/json'},
+        headers: _jsonHeaders(),
         body: jsonEncode({
           'email': email,
           'type': type,
