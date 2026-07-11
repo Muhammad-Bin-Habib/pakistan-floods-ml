@@ -43,11 +43,42 @@ CSV_PATH = os.path.realpath(os.path.join(BASE_DIR, '..', 'pakistan_floods.csv'))
 MODEL_PATH = os.path.join(BASE_DIR, 'model.pkl')
 SCALER_PATH = os.path.join(BASE_DIR, 'scaler.pkl')
 
+# Feature order used everywhere a raw input list is built for the model.
+# Must match the `features` list in train.py.
+FEATURES = ['Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
+            'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged']
+
+# Indices (within FEATURES/inputs lists) of the columns that train.py log-transforms.
+# Year is excluded - see train.py for why.
+LOG_FEATURE_IDX = [1, 2, 3, 4, 5, 6]
+
 # Global cache for training metrics
 metrics_cache = {
     "r2": None,
     "rmse": None
 }
+
+
+def apply_log_transform(inputs):
+    """Log1p-transform the skewed features in a raw input list, matching train.py."""
+    transformed = list(inputs)
+    for i in LOG_FEATURE_IDX:
+        transformed[i] = float(np.log1p(transformed[i]))
+    return transformed
+
+
+def predict_from_inputs(inputs, scaler, model):
+    """
+    Take a raw (untransformed) feature list in FEATURES order, apply the same
+    log1p transform used at training time, scale it, predict in log-space,
+    then invert back to real-world affected-population units.
+    """
+    inputs_log = apply_log_transform(inputs)
+    scaled = scaler.transform([inputs_log])
+    prediction_log = model.predict(scaled)[0]
+    prediction = float(np.expm1(prediction_log))
+    return max(0.0, prediction)
+
 
 def load_or_train_model():
     if not os.path.exists(MODEL_PATH) or not os.path.exists(SCALER_PATH):
@@ -64,24 +95,25 @@ def load_or_train_model():
         except Exception as e:
             print(f"Error doing initial training: {e}")
 
+
 @app.route('/api/stats', methods=['GET'])
 def get_stats():
     try:
         df = pd.read_csv(CSV_PATH, encoding='latin1')
-        
+
         # Calculate stats
         total_records = len(df)
         avg_deaths = float(df['Total_deaths'].mean())
         avg_injured = float(df['Total_injured'].mean())
         avg_houses = float(df['Houses_damaged'].mean())
-        
+
         # Find highest risk region by average affected population
         region_avg = df.groupby('Region')['Affected_population'].mean()
         highest_risk_region = region_avg.idxmax()
         highest_risk_val = float(region_avg.max())
-        
+
         load_or_train_model()
-        
+
         return jsonify({
             'success': True,
             'total_records': total_records,
@@ -98,6 +130,7 @@ def get_stats():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 @app.route('/api/regions', methods=['GET'])
 def get_regions():
     try:
@@ -107,45 +140,34 @@ def get_regions():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 @app.route('/api/predict', methods=['POST'])
 def predict():
     try:
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'No input data provided'}), 400
-            
+
         required_fields = ['Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
                            'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged']
-        
+
         missing = [f for f in required_fields if f not in data]
         if missing:
             return jsonify({'success': False, 'message': f'Missing fields: {missing}'}), 400
-            
-        # Parse inputs
-        inputs = [
-            float(data['Year']),
-            float(data['Total_deaths']),
-            float(data['Total_injured']),
-            float(data['Roads_damaged_km']),
-            float(data['Bridges_damaged']),
-            float(data['Houses_damaged']),
-            float(data['Livestock_damaged'])
-        ]
-        
+
+        # Parse inputs in FEATURES order
+        inputs = [float(data[f]) for f in FEATURES]
+
         # Load scaler and model
         load_or_train_model()
         with open(SCALER_PATH, 'rb') as f:
             scaler = pickle.load(f)
         with open(MODEL_PATH, 'rb') as f:
             model = pickle.load(f)
-            
-        # Scale and predict
-        scaled = scaler.transform([inputs])
-        prediction = model.predict(scaled)[0]
-        
-        # Predicted value cannot be negative
-        prediction = max(0.0, float(prediction))
-        
+
+        # Log-transform, scale, predict, and invert back to real units
+        prediction = predict_from_inputs(inputs, scaler, model)
+
         return jsonify({
             'success': True,
             'predicted_affected_population': round(prediction, 2)
@@ -153,20 +175,21 @@ def predict():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 @app.route('/api/report', methods=['POST'])
 def report_disaster():
     try:
         data = request.get_json()
         if not data:
             return jsonify({'success': False, 'message': 'No input data provided'}), 400
-            
+
         required_fields = ['Region', 'Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
                            'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged', 'Affected_population']
-                           
+
         missing = [f for f in required_fields if f not in data]
         if missing:
             return jsonify({'success': False, 'message': f'Missing fields: {missing}'}), 400
-            
+
         # Prepare row details, map schema
         new_row = {
             'Region': str(data['Region']),
@@ -185,17 +208,17 @@ def report_disaster():
             'Livestock_damaged': int(data['Livestock_damaged']),
             'Affected_population': int(data['Affected_population'])
         }
-        
+
         # Load and append dynamically to dataset
         df = pd.read_csv(CSV_PATH, encoding='latin1')
         df = pd.concat([df, pd.DataFrame([new_row])], ignore_index=True)
         df.to_csv(CSV_PATH, index=False)
-        
+
         # Train model asynchronously/inline on report
         r2, rmse, data_count = train_and_save_model(CSV_PATH, BASE_DIR)
         metrics_cache["r2"] = r2
         metrics_cache["rmse"] = rmse
-        
+
         return jsonify({
             'success': True,
             'message': 'Disaster reported successfully and stored in dataset.',
@@ -208,6 +231,7 @@ def report_disaster():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/retrain', methods=['POST'])
 def force_retrain():
@@ -227,51 +251,53 @@ def force_retrain():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
+def build_future_rows(baseline, future_years):
+    """Shared helper: build the 3%/yr growth-scenario rows used by projections/report/email."""
+    future_rows = []
+    for i, yr in enumerate(future_years):
+        scale = 1 + (i * 0.03)  # 3% annual growth scenario
+        future_rows.append({
+            'Year': yr,
+            'Total_deaths': int(baseline['Total_deaths'] * scale),
+            'Total_injured': int(baseline['Total_injured'] * scale),
+            'Roads_damaged_km': float(baseline['Roads_damaged_km'] * scale),
+            'Bridges_damaged': int(baseline['Bridges_damaged'] * scale),
+            'Houses_damaged': int(baseline['Houses_damaged'] * scale),
+            'Livestock_damaged': int(baseline['Livestock_damaged'] * scale),
+        })
+    return future_rows
+
+
 @app.route('/api/projections', methods=['GET'])
 def get_projections():
     region = request.args.get('region', 'Sindh')
     try:
         df = pd.read_csv(CSV_PATH, encoding='latin1')
         region_data = df[df['Region'].str.lower() == region.lower()]
-        
+
         if region_data.empty:
             # Fallback to Sindh if requested region not found
             region_data = df[df['Region'].str.lower() == 'sindh']
             if region_data.empty:
                 return jsonify({'success': False, 'message': f'Region {region} or fallback Sindh not found in data'}), 404
-        
+
         baseline = region_data.sort_values('Year').iloc[-1]
-        
+
         future_years = list(range(2023, 2031))
-        future_rows = []
-        for i, yr in enumerate(future_years):
-            scale = 1 + (i * 0.03)  # 3% annual growth scenario
-            future_rows.append({
-                'Year': yr,
-                'Total_deaths': int(baseline['Total_deaths'] * scale),
-                'Total_injured': int(baseline['Total_injured'] * scale),
-                'Roads_damaged_km': float(baseline['Roads_damaged_km'] * scale),
-                'Bridges_damaged': int(baseline['Bridges_damaged'] * scale),
-                'Houses_damaged': int(baseline['Houses_damaged'] * scale),
-                'Livestock_damaged': int(baseline['Livestock_damaged'] * scale),
-            })
-            
+        future_rows = build_future_rows(baseline, future_years)
         future_df = pd.DataFrame(future_rows)
-        features = ['Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
-                    'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged']
-                    
+
         load_or_train_model()
         with open(SCALER_PATH, 'rb') as f:
             scaler = pickle.load(f)
         with open(MODEL_PATH, 'rb') as f:
             model = pickle.load(f)
-            
-        future_scaled = scaler.transform(future_df[features])
-        predictions = model.predict(future_scaled)
-        
+
         projections_list = []
         for idx, row in future_df.iterrows():
-            pred = max(0.0, float(predictions[idx]))
+            inputs = [row[f] for f in FEATURES]
+            pred = predict_from_inputs(inputs, scaler, model)
             projections_list.append({
                 'year': int(row['Year']),
                 'predicted_affected': round(pred, 2),
@@ -279,7 +305,7 @@ def get_projections():
                 'estimated_injured': int(row['Total_injured']),
                 'estimated_houses_damaged': int(row['Houses_damaged'])
             })
-            
+
         return jsonify({
             'success': True,
             'region': baseline['Region'],
@@ -287,6 +313,7 @@ def get_projections():
         })
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 @app.route('/api/alerts', methods=['GET'])
 def get_alerts():
@@ -322,6 +349,7 @@ def get_alerts():
         'alerts': alerts
     })
 
+
 @app.route('/api/exports/dataset', methods=['GET'])
 def export_dataset():
     try:
@@ -332,30 +360,31 @@ def export_dataset():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 @app.route('/api/imports/dataset', methods=['POST'])
 def import_dataset():
     try:
         if 'file' not in request.files:
             return jsonify({'success': False, 'message': 'No file segment found'}), 400
-        
+
         file = request.files['file']
         if not file.filename.endswith('.csv'):
             return jsonify({'success': False, 'message': 'Only CSV files are allowed'}), 400
-            
+
         df = pd.read_csv(file, encoding='latin1')
         required_cols = ['Region', 'Year', 'Total_deaths', 'Total_injured', 'Roads_damaged_km',
                         'Bridges_damaged', 'Houses_damaged', 'Livestock_damaged', 'Affected_population']
-        
+
         missing = [c for c in required_cols if c not in df.columns]
         if missing:
             return jsonify({'success': False, 'message': f'CSV missing required columns: {missing}'}), 400
-            
+
         df.to_csv(CSV_PATH, index=False)
-        
+
         r2, rmse, data_count = train_and_save_model(CSV_PATH, BASE_DIR)
         metrics_cache["r2"] = r2
         metrics_cache["rmse"] = rmse
-        
+
         return jsonify({
             'success': True,
             'message': 'Custom dataset imported and calibration metrics updated successfully!',
@@ -368,6 +397,7 @@ def import_dataset():
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 @app.route('/api/exports/report', methods=['GET'])
 def export_report():
     region = request.args.get('region', 'Sindh')
@@ -378,18 +408,18 @@ def export_report():
             region_data = df[df['Region'].str.lower() == 'sindh']
             if region_data.empty:
                 return jsonify({'success': False, 'message': f'Region {region} not found.'}), 404
-        
+
         baseline = region_data.sort_values('Year').iloc[-1]
-        
+
         future_years = list(range(2023, 2031))
         rows = []
-        
+
         load_or_train_model()
         with open(SCALER_PATH, 'rb') as f:
             scaler = pickle.load(f)
         with open(MODEL_PATH, 'rb') as f:
             model = pickle.load(f)
-            
+
         for i, yr in enumerate(future_years):
             scale = 1 + (i * 0.03)
             inputs = [
@@ -401,12 +431,11 @@ def export_report():
                 float(baseline['Houses_damaged'] * scale),
                 float(baseline['Livestock_damaged'] * scale)
             ]
-            scaled = scaler.transform([inputs])
-            pred = max(0.0, float(model.predict(scaled)[0]))
-            
+            pred = predict_from_inputs(inputs, scaler, model)
+
             min_aff = round(pred * 0.85)
             max_aff = round(pred * 1.15)
-            
+
             rows.append({
                 'Region': baseline['Region'],
                 'Year': yr,
@@ -425,26 +454,27 @@ def export_report():
                 'MedicalComps_Req_Min': round(min_aff / 80.0),
                 'MedicalComps_Req_Max': round(max_aff / 80.0)
             })
-            
+
         report_df = pd.DataFrame(rows)
         report_csv_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.csv')
         report_df.to_csv(report_csv_path, index=False)
-        
+
         return send_file(report_csv_path, mimetype='text/csv', as_attachment=True, download_name=f'{region}_projections_report.csv')
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
 
+
 def send_email_with_attachment(to_email, subject, body, file_path, file_name):
     # Read environment config setup
     load_dotenv_fallback()
-    
+
     smtp_server = os.environ.get('SMTP_SERVER', 'smtp.gmail.com')
     smtp_port = int(os.environ.get('SMTP_PORT', '587'))
     smtp_user = os.environ.get('SMTP_USER', '')
     smtp_pass = os.environ.get('SMTP_PASS', '')
-    
+
     print(f"[SMTP DISPATCH] Attempting send - user: {smtp_user}, pass length: {len(smtp_pass) if smtp_pass else 0}")
-    
+
     # Sandbox/Test harness console fallback is activated when credentials are blank
     if not smtp_user or not smtp_pass:
         print("=" * 60)
@@ -456,29 +486,30 @@ def send_email_with_attachment(to_email, subject, body, file_path, file_name):
         print(body)
         print("=" * 60)
         return True, "Email generated. Simulation Mode Active: Check Flask console output."
-        
+
     try:
         msg = MIMEMultipart()
         msg['From'] = smtp_user
         msg['To'] = to_email
         msg['Subject'] = subject
         msg.attach(MIMEText(body, 'plain'))
-        
+
         with open(file_path, 'rb') as f:
             part = MIMEBase('application', 'octet-stream')
             part.set_payload(f.read())
             encoders.encode_base64(part)
             part.add_header('Content-Disposition', f'attachment; filename="{file_name}"')
             msg.attach(part)
-            
+
         with smtplib.SMTP(smtp_server, smtp_port) as server:
             server.starttls()
             server.login(smtp_user, smtp_pass)
             server.sendmail(smtp_user, to_email, msg.as_string())
-            
+
         return True, "Email successfully transmitted via SMTP server!"
     except Exception as e:
         return False, f"SMTP transmission failure: {str(e)}"
+
 
 @app.route('/api/exports/email', methods=['POST'])
 def email_export():
@@ -490,13 +521,13 @@ def email_export():
         officer_name = data.get('officer_name', 'EOC Officer')
         batch_id = data.get('batch_id', 'EOC-UNKNOWN')
         file_format = data.get('format', 'csv') # 'csv' or 'pdf'
-        
+
         if not to_email:
             return jsonify({'success': False, 'message': 'Missing recipient email address'}), 400
-            
+
         file_path = None
         file_name = None
-        
+
         if export_type == 'dataset':
             if file_format == 'pdf':
                 file_path = os.path.join(BASE_DIR, 'pakistan_floods_telemetry_summary.pdf')
@@ -523,17 +554,17 @@ def email_export():
                 region_data = df[df['Region'].str.lower() == 'sindh']
                 if region_data.empty:
                     return jsonify({'success': False, 'message': f'Region {region} not registered.'}), 404
-            
+
             baseline = region_data.sort_values('Year').iloc[-1]
             future_years = list(range(2023, 2031))
             rows = []
-            
+
             load_or_train_model()
             with open(SCALER_PATH, 'rb') as f:
                 scaler = pickle.load(f)
             with open(MODEL_PATH, 'rb') as f:
                 model = pickle.load(f)
-                
+
             for i, yr in enumerate(future_years):
                 scale = 1 + (i * 0.03)
                 inputs = [
@@ -545,12 +576,11 @@ def email_export():
                     float(baseline['Houses_damaged'] * scale),
                     float(baseline['Livestock_damaged'] * scale)
                 ]
-                scaled = scaler.transform([inputs])
-                pred = max(0.0, float(model.predict(scaled)[0]))
-                
+                pred = predict_from_inputs(inputs, scaler, model)
+
                 min_aff = round(pred * 0.85)
                 max_aff = round(pred * 1.15)
-                
+
                 rows.append({
                     'Region': baseline['Region'],
                     'Year': yr,
@@ -569,9 +599,9 @@ def email_export():
                     'MedicalComps_Req_Min': round(min_aff / 80.0),
                     'MedicalComps_Req_Max': round(max_aff / 80.0)
                 })
-                
+
             report_df = pd.DataFrame(rows)
-            
+
             if file_format == 'pdf':
                 load_or_train_model()
                 model_r2 = metrics_cache.get('r2') or 0.63
@@ -582,7 +612,7 @@ def email_export():
                 file_path = os.path.join(BASE_DIR, f'{region}_flood_projections_report.csv')
                 report_df.to_csv(file_path, index=False)
                 file_name = f'{region}_projections_report.csv'
-                
+
             subject = f'FloodGuard Regional Risk Projections: {region.upper()}'
             body = (
                 f"NDMA Emergency Command Center Alert\n"
@@ -597,9 +627,9 @@ def email_export():
             )
         else:
             return jsonify({'success': False, 'message': 'Unknown export type'}), 400
-            
+
         success, message = send_email_with_attachment(to_email, subject, body, file_path, file_name)
-        
+
         # Clean up temporary generated files
         if file_path and os.path.exists(file_path):
             if file_format == 'pdf' or export_type == 'report':
@@ -607,10 +637,11 @@ def email_export():
                     os.remove(file_path)
                 except:
                     pass
-                    
+
         return jsonify({'success': success, 'message': message})
     except Exception as e:
         return jsonify({'success': False, 'message': str(e)}), 500
+
 
 if __name__ == '__main__':
     load_or_train_model()
