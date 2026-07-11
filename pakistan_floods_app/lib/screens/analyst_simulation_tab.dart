@@ -186,10 +186,10 @@ class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
                               ),
                               style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
                               items: const [
-                                DropdownMenuItem(value: 'Sindh', child: Text('Sindh (47.8M Ceiling)')),
-                                DropdownMenuItem(value: 'Punjab', child: Text('Punjab (110.0M Ceiling)')),
-                                DropdownMenuItem(value: 'KP', child: Text('KP (35.5M Ceiling)')),
-                                DropdownMenuItem(value: 'Balochistan', child: Text('Balochistan (12.3M Ceiling)')),
+                                DropdownMenuItem(value: 'Sindh', child: Text('Sindh (55.69M Ceiling)')),
+                                DropdownMenuItem(value: 'Punjab', child: Text('Punjab (127.69M Ceiling)')),
+                                DropdownMenuItem(value: 'KP', child: Text('KP (40.85M Ceiling)')),
+                                DropdownMenuItem(value: 'Balochistan', child: Text('Balochistan (14.89M Ceiling)')),
                               ],
                               onChanged: (val) {
                                 if (val != null) {

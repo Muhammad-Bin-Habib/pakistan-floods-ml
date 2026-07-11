@@ -64,10 +64,14 @@ REGIONAL_POPULATIONS = {
     'Sindh': 55696147,
     'Khyber Pakhtunkhwa': 40856097,
     'KPK': 40856097,
+    'KP': 40856097,
     'Balochistan': 14894402,
     'FATA': 5000000,
     'AJ&K': 4000000,
+    'AJK': 4000000,
     'Gilgit-Baltistan': 2000000,
+    'GB': 2000000,
+    'ICT': 2363863,
     'Default': 100000000
 }
 
@@ -103,8 +107,8 @@ def predict_from_inputs(inputs, scaler, model, region_name='Default'):
     prediction_log = np.clip(prediction_log, 0, 17.0)
     prediction = float(np.expm1(prediction_log))
     
-    # Cap at a realistic maximum fraction (80%) of regional population
-    ceil = get_population_ceiling(region_name) * 0.80
+    # Clamp directly at the actual regional population ceiling (2023 census)
+    ceil = get_population_ceiling(region_name)
     prediction = min(prediction, ceil)
     
     return max(0.0, prediction)
