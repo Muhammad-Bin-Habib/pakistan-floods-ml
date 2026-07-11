@@ -5,7 +5,7 @@ class AppState {
   AppState._internal();
 
   // Server config – hidden from the citizen user
-  String serverIp = '127.0.0.1:5000';
+  String serverIp = 'https://mbh7788899.pythonanywhere.com';
 
   // Logged-in user info
   bool isLoggedIn = false;
