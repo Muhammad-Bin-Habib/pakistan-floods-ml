@@ -309,18 +309,18 @@ class _AnalystTrendsTabState extends State<AnalystTrendsTab> {
                   Expanded(
                     child: OutlinedButton.icon(
                       style: OutlinedButton.styleFrom(
-                        side: const BorderSide(color: Color(0xFFC53030), width: 1.5),
+                        side: const BorderSide(color: prNavy, width: 1.5),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                         backgroundColor: Colors.white,
                         padding: const EdgeInsets.symmetric(vertical: 12),
                       ),
                       onPressed: _isEmailingReport ? null : () => _emailProjectionsReport('pdf'),
                       icon: _isEmailingReport 
-                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFC53030)))
-                        : const Icon(Icons.picture_as_pdf_outlined, size: 16, color: Color(0xFFC53030)),
+                        ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: prNavy))
+                        : const Icon(Icons.picture_as_pdf_outlined, size: 16, color: prNavy),
                       label: const Text(
                         'EMAIL SUMMARY PDF',
-                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFFC53030), letterSpacing: 0.5),
+                        style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: prNavy, letterSpacing: 0.5),
                       ),
                     ),
                   ),
@@ -376,6 +376,9 @@ class _AnalystTrendsTabState extends State<AnalystTrendsTab> {
                             showTitles: true,
                             reservedSize: 42,
                             getTitlesWidget: (value, meta) {
+                              if (value == meta.max || (meta.max - value) < (meta.max - meta.min) * 0.08) {
+                                return const SizedBox.shrink();
+                              }
                               double valInM = value / 1000000;
                               return Text(
                                 '${valInM.toStringAsFixed(1)}M',

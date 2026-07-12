@@ -294,7 +294,7 @@ class _AnalystOverviewTabState extends State<AnalystOverviewTab> {
         final loc = alert['location'] ?? '';
         final time = alert['time'] ?? 'Unknown time';
 
-        // Colorblind accessible mapping: High contrast custom theme sheets
+        // Colorblind accessible mapping with distinct shapes/icons and colors
         Color alertBg = const Color(0xFFD1E7DD);
         Color alertBorder = const Color(0xFFBADBCB);
         Color alertText = const Color(0xFF0F5132);
@@ -304,12 +304,17 @@ class _AnalystOverviewTabState extends State<AnalystOverviewTab> {
           alertBg = const Color(0xFFF8D7DA);
           alertBorder = const Color(0xFFF5C2C7);
           alertText = const Color(0xFF842029);
-          severityIcon = Icons.error_sharp;
-        } else if (severity == 'AMBER') {
-          alertBg = const Color(0xFFFFF3CD);
-          alertBorder = const Color(0xFFFFE69C);
-          alertText = const Color(0xFF664D03);
-          severityIcon = Icons.warning_sharp;
+          severityIcon = Icons.error_sharp; // Alert/exclamation circle shape
+        } else if (severity == 'ORANGE' || severity == 'AMBER') {
+          alertBg = const Color(0xFFFFEAD2);
+          alertBorder = const Color(0xFFFFB088);
+          alertText = const Color(0xFF9E4600);
+          severityIcon = Icons.warning_sharp; // Warning filled triangle shape
+        } else if (severity == 'YELLOW') {
+          alertBg = const Color(0xFFFFF9DB);
+          alertBorder = const Color(0xFFFFEC99);
+          alertText = const Color(0xFF8A6D00);
+          severityIcon = Icons.warning_amber_sharp; // Caution outlined triangle shape
         }
 
         return Container(

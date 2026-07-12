@@ -328,10 +328,13 @@ def generate_projections_dataframe(region_data, region_name):
     rows = []
     for row in future_rows:
         inputs = [row[f] for f in FEATURES]
-        pred = predict_from_inputs(inputs, scaler, model, region_name=baseline.get('Region', region_name))
+        r_name = baseline.get('Region', region_name)
+        pred = predict_from_inputs(inputs, scaler, model, region_name=r_name)
         
-        min_aff = round(pred * 0.85)
-        max_aff = round(pred * 1.15)
+        # Enforce population ceiling on the range bounds
+        ceil = get_population_ceiling(r_name)
+        min_aff = min(round(pred * 0.85), ceil)
+        max_aff = min(round(pred * 1.15), ceil)
         
         rows.append({
             'Region': baseline['Region'],

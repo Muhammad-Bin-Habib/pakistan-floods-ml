@@ -662,17 +662,17 @@ class _AnalystSettingsTabState extends State<AnalystSettingsTab> {
                         height: 38,
                         child: OutlinedButton.icon(
                           style: OutlinedButton.styleFrom(
-                            side: const BorderSide(color: Color(0xFFC53030), width: 1.5),
+                            side: const BorderSide(color: prNavy, width: 1.5),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
                             backgroundColor: Colors.white,
                           ),
                           onPressed: _isEmailingDataset ? null : () => _emailDataset('pdf'),
                           icon: _isEmailingDataset
-                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: Color(0xFFC53030)))
-                              : const Icon(Icons.picture_as_pdf_outlined, color: Color(0xFFC53030), size: 16),
+                              ? const SizedBox(width: 14, height: 14, child: CircularProgressIndicator(strokeWidth: 1.5, color: prNavy))
+                              : const Icon(Icons.picture_as_pdf_outlined, color: prNavy, size: 16),
                           label: const Text(
                             'EMAIL SUMMARY PDF',
-                            style: TextStyle(color: Color(0xFFC53030), fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+                            style: TextStyle(color: prNavy, fontSize: 9, fontWeight: FontWeight.bold, letterSpacing: 0.5),
                           ),
                         ),
                       ),
