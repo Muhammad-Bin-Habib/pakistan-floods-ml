@@ -22,6 +22,7 @@ class _AnalystShellState extends State<AnalystShell> {
   bool _isOnline = false;
   String _lastSyncedTime = '18:28:01 (2026-07-11)';
   String _modelR2Label = '63.2%';
+  String _pingTime = '42 ms';
 
   @override
   void initState() {
@@ -32,76 +33,66 @@ class _AnalystShellState extends State<AnalystShell> {
 
   Future<void> _checkSystemMetricsStatus() async {
     final ip = AppState().serverIp;
+    final start = DateTime.now();
     final res = await ApiService.getStats(ip);
+    final end = DateTime.now();
+    
     if (res['success'] == true && mounted) {
       setState(() {
         _isOnline = true;
-        final modelR2 = res['model_metrics']?['r2']?.toString() ?? '0.6319';
+        _pingTime = '${end.difference(start).inMilliseconds} ms';
+        final modelR2 = res['model_metrics']?['r2']?.toString() ?? '0.5954';
         _modelR2Label = (double.tryParse(modelR2) != null) 
             ? '${(double.parse(modelR2) * 100).toStringAsFixed(1)}%' 
-            : '63.2%';
+            : '59.5%';
         _lastSyncedTime = 'Just now';
       });
+    } else {
+      if(mounted) {
+        setState(() {
+          _isOnline = false;
+        });
+      }
     }
   }
 
   void _rebuildTabs() {
     setState(() {
       _tabs = [
-        AnalystOverviewTab(
-          onNavigateToIngestion: () {
-            setState(() => _currentIndex = 2);
-          },
-        ),
+        AnalystOverviewTab(onNavigateToIngestion: () => setState(() => _currentIndex = 2)),
         const AnalystSimulationTab(),
         const AnalystIngestionTab(),
         const AnalystTrendsTab(),
-        AnalystSettingsTab(
-          onStateModified: () {
-            _checkSystemMetricsStatus();
-            _rebuildTabs();
-          },
-        ),
+        AnalystSettingsTab(onStateModified: () {
+          _checkSystemMetricsStatus();
+          _rebuildTabs();
+        }),
       ];
     });
   }
 
   void _logout() {
-    const prNavy = Color(0xFF1B365D);
-    
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
         backgroundColor: Colors.white,
-        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-        title: const Text(
-          'LOGOUT SESSION',
-          style: TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.8, color: prNavy),
-        ),
-        content: const Text(
-          'Terminate operational terminal. Confirmed actions will flush security sessions.',
-          style: TextStyle(fontSize: 12, color: Color(0xFF475569)),
-        ),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        title: const Text('Sign Out', style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+        content: const Text('Are you sure you want to securely disconnect your terminal session?', style: TextStyle(fontSize: 15, color: Color(0xFF6B7280))),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: const Text('CANCEL', style: TextStyle(color: Colors.black38, fontSize: 11)),
+            child: const Text('Cancel', style: TextStyle(color: Color(0xFF6B7280), fontWeight: FontWeight.w600)),
           ),
           ElevatedButton(
             onPressed: () {
               AppState().isLoggedIn = false;
               AppState().isGovernmentUser = false;
               Navigator.pop(context);
-              Navigator.of(context).pushReplacement(
-                MaterialPageRoute(builder: (context) => const LoginScreen()),
-              );
+              Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const LoginScreen()));
             },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: const Color(0xFFC53030), // Colorblind-accessible red
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-            ),
-            child: const Text('DISCONNECT', style: TextStyle(fontSize: 11, fontWeight: FontWeight.bold)),
+            style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFEF4444)),
+            child: const Text('Disconnect'),
           )
         ],
       ),
@@ -110,121 +101,97 @@ class _AnalystShellState extends State<AnalystShell> {
 
   @override
   Widget build(BuildContext context) {
-    const prNavy = Color(0xFF1B365D);
-    const scForest = Color(0xFF2D6A4F);
-    const bgLight = Color(0xFFF1F5F9);
-    const borderSlate = Color(0xFFE2E8F0);
+    const prGreen = Color(0xFF16A34A);
+    const borderSlate = Color(0xFFE5E7EB);
+    
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isDesktop = screenWidth >= 1025;
 
-    return Scaffold(
-      backgroundColor: bgLight,
-      body: SafeArea(
+    Widget mainContent = Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 1440),
         child: Column(
           children: [
-            // Persistent Command Agency Header
+            // Top App Bar Header
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
               decoration: const BoxDecoration(
                 color: Colors.white,
-                border: Border(
-                  bottom: BorderSide(color: borderSlate, width: 1.5),
-                ),
+                border: Border(bottom: BorderSide(color: borderSlate, width: 1)),
               ),
               child: Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
+                  if (!isDesktop)
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: prGreen.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                          child: const Icon(Icons.shield_outlined, color: prGreen, size: 20),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text(
+                          'NDMA Intelligence',
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        ),
+                      ],
+                    )
+                  else
+                    Row(
+                      children: [
+                        const Text(
+                          'Intelligence Workspace',
+                          style: TextStyle(fontSize: 18, fontWeight: FontWeight.w700, color: Color(0xFF111827)),
+                        ),
+                        const SizedBox(width: 16),
+                        Container(
+                          padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFF3F4F6),
+                            borderRadius: BorderRadius.circular(20),
+                          ),
+                          child: Text(
+                            'Session: ${AppState().userName}',
+                            style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Color(0xFF6B7280)),
+                          ),
+                        ),
+                      ],
+                    ),
                   Row(
                     children: [
-                      const Icon(Icons.shield_outlined, color: prNavy, size: 20),
-                      const SizedBox(width: 10),
-                      Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          const Text(
-                            'NDMA DISASTER INTELLIGENCE CONSOLE',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w900,
-                              letterSpacing: 0.5,
-                              color: prNavy,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Row(
-                            children: [
-                              const Text(
-                                'OPERATING PICTURE: ACTIVE',
-                                style: TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: scForest,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Container(
-                                width: 4,
-                                height: 4,
-                                decoration: const BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: Colors.black26,
-                                ),
-                              ),
-                              const SizedBox(width: 8),
-                              Text(
-                                'OFFICER: ${AppState().userName.toUpperCase()}',
-                                style: const TextStyle(
-                                  fontSize: 8,
-                                  fontWeight: FontWeight.bold,
-                                  color: Color(0xFF64748B),
-                                ),
-                              ),
-                            ],
-                          ),
-                        ],
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      // Connectivity Status Chip
                       Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                         decoration: BoxDecoration(
-                          color: _isOnline ? scForest.withOpacity(0.08) : const Color(0xFFC53030).withOpacity(0.08),
-                          borderRadius: BorderRadius.circular(4),
-                          border: Border.all(
-                            color: _isOnline ? scForest.withOpacity(0.3) : const Color(0xFFC53030).withOpacity(0.3),
-                          ),
+                          color: _isOnline ? const Color(0xFFECFDF5) : const Color(0xFFFEF2F2),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Row(
                           children: [
                             Container(
-                              width: 6,
-                              height: 6,
+                              width: 8, height: 8,
                               decoration: BoxDecoration(
                                 shape: BoxShape.circle,
-                                color: _isOnline ? scForest : const Color(0xFFC53030),
+                                color: _isOnline ? const Color(0xFF10B981) : const Color(0xFFEF4444),
                               ),
                             ),
-                            const SizedBox(width: 6),
+                            const SizedBox(width: 8),
                             Text(
-                              _isOnline ? 'SYSTEM CONNECTED' : 'OFFLINE SIMULATOR',
+                              _isOnline ? 'Connected • $_pingTime' : 'Offline Mode',
                               style: TextStyle(
-                                fontSize: 8,
-                                fontWeight: FontWeight.bold,
-                                color: _isOnline ? scForest : const Color(0xFFC53030),
-                                letterSpacing: 0.5,
+                                fontSize: 13,
+                                fontWeight: FontWeight.w600,
+                                color: _isOnline ? const Color(0xFF059669) : const Color(0xFFDC2626),
                               ),
                             ),
                           ],
                         ),
                       ),
-                      const SizedBox(width: 12),
+                      const SizedBox(width: 16),
                       IconButton(
-                        constraints: const BoxConstraints(),
-                        padding: EdgeInsets.zero,
-                        icon: const Icon(Icons.power_settings_new_rounded, color: Color(0xFFC53030), size: 20),
-                        tooltip: 'Disconnect session',
+                        icon: const Icon(Icons.logout_rounded, color: Color(0xFF6B7280), size: 22),
+                        tooltip: 'Sign Out',
+                        splashRadius: 20,
                         onPressed: _logout,
                       ),
                     ],
@@ -232,79 +199,31 @@ class _AnalystShellState extends State<AnalystShell> {
                 ],
               ),
             ),
-
-            // Operations Status Strip (Nielsen Heuristics: Visibility of system status)
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-              decoration: const BoxDecoration(
-                color: Color(0xFFEDF2F7),
-                border: Border(
-                  bottom: BorderSide(color: borderSlate, width: 1.0),
-                ),
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Row(
-                    children: [
-                      const Icon(Icons.update_rounded, color: Color(0xFF475569), size: 12),
-                      const SizedBox(width: 6),
-                      Text(
-                        'DATA PROVENANCE: $_lastSyncedTime',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF475569),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                  Row(
-                    children: [
-                      const Icon(Icons.analytics_outlined, color: Color(0xFF475569), size: 12),
-                      const SizedBox(width: 6),
-                      Text(
-                        'MODEL ACCURACY (R²): $_modelR2Label',
-                        style: const TextStyle(
-                          fontSize: 9,
-                          fontWeight: FontWeight.bold,
-                          color: Color(0xFF475569),
-                          fontFamily: 'monospace',
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            
+            // Experimental Disclaimer
             Container(
               width: double.infinity,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
               decoration: const BoxDecoration(
-                color: Color(0xFFFFF9E6),
-                border: Border(
-                  bottom: BorderSide(color: Color(0xFFFFE0B2), width: 1.0),
-                ),
+                color: Color(0xFFFFFBEB),
+                border: Border(bottom: BorderSide(color: Color(0xFFFDE68A), width: 1)),
               ),
               child: const Row(
-                children: [
-                   Icon(Icons.warning_amber_rounded, color: Color(0xFFD97706), size: 14),
-                   SizedBox(width: 8),
-                   Expanded(
-                     child: Text(
-                       'PROTOTYPE / ESTIMATION ESTIMATOR DISCLAIMER: This system is a predictive simulation tool. Calculations represent machine learning estimates only and should not be used as the sole basis for high-stakes operational planning or direct emergency dispatch. Actual flood impacts may deviate significantly.',
-                       style: TextStyle(
-                         fontSize: 9,
-                         fontWeight: FontWeight.normal,
-                         color: Color(0xFF92400E),
-                         height: 1.3,
-                       ),
-                     ),
-                   ),
-                ],
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                    Icon(Icons.shield_rounded, color: Color(0xFFD97706), size: 18),
+                    SizedBox(width: 12),
+                    Expanded(
+                      child: Text(
+                        'This is a predictive simulation platform. Verify machine learning estimates before dispatch.',
+                        style: TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: Color(0xFF92400E)),
+                      ),
+                    ),
+                 ],
               ),
             ),
+            
+            // Tab Context
             Expanded(
               child: IndexedStack(
                 index: _currentIndex,
@@ -314,45 +233,113 @@ class _AnalystShellState extends State<AnalystShell> {
           ],
         ),
       ),
-      bottomNavigationBar: BottomNavigationBar(
+    );
+
+    return Scaffold(
+      backgroundColor: const Color(0xFFF8FAFC),
+      body: SafeArea(
+        child: isDesktop
+            ? Row(
+                children: [
+                   _buildSidebar(),
+                   const VerticalDivider(width: 1, thickness: 1, color: borderSlate),
+                   Expanded(child: mainContent),
+                ],
+              )
+            : mainContent,
+      ),
+      bottomNavigationBar: isDesktop ? null : _buildBottomNav(),
+    );
+  }
+
+  Widget _buildSidebar() {
+    return Container(
+      width: 240,
+      color: Colors.white,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Row(
+              children: [
+                Container(
+                  padding: const EdgeInsets.all(10),
+                  decoration: BoxDecoration(color: const Color(0xFF16A34A).withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: const Icon(Icons.water_drop_rounded, color: Color(0xFF16A34A), size: 24),
+                ),
+                const SizedBox(width: 12),
+                const Text('FloodGuard', style: TextStyle(fontSize: 20, fontWeight: FontWeight.w800, color: Color(0xFF111827))),
+              ],
+            ),
+          ),
+          const SizedBox(height: 12),
+          _sidebarItem(0, Icons.space_dashboard_outlined, Icons.space_dashboard_rounded, 'Overview'),
+          _sidebarItem(1, Icons.analytics_outlined, Icons.analytics_rounded, 'Simulator'),
+          _sidebarItem(2, Icons.add_box_outlined, Icons.add_box_rounded, 'Ingestion'),
+          _sidebarItem(3, Icons.trending_up_rounded, Icons.trending_up, 'Trends & Core'),
+          _sidebarItem(4, Icons.settings_outlined, Icons.settings_rounded, 'Settings'),
+          const Spacer(),
+          Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Text('Model Accuracy:\\n$_modelR2Label', style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600, color: Color(0xFF6B7280), height: 1.5)),
+          )
+        ],
+      ),
+    );
+  }
+
+  Widget _sidebarItem(int index, IconData outline, IconData filled, String label) {
+    bool isActive = _currentIndex == index;
+    return InkWell(
+      onTap: () => setState(() => _currentIndex = index),
+      child: Container(
+        margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFF16A34A).withOpacity(0.1) : Colors.transparent,
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Row(
+          children: [
+            Icon(isActive ? filled : outline, color: isActive ? const Color(0xFF16A34A) : const Color(0xFF6B7280), size: 22),
+            const SizedBox(width: 12),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 14,
+                fontWeight: isActive ? FontWeight.w600 : FontWeight.w500,
+                color: isActive ? const Color(0xFF16A34A) : const Color(0xFF4B5563),
+              ),
+            )
+          ],
+        ),
+      ),
+    );
+  }
+
+  Widget _buildBottomNav() {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        border: const Border(top: BorderSide(color: Color(0xFFE5E7EB), width: 1)),
+      ),
+      child: BottomNavigationBar(
         currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-        },
+        onTap: (index) => setState(() => _currentIndex = index),
         type: BottomNavigationBarType.fixed,
         backgroundColor: Colors.white,
-        selectedItemColor: prNavy,
-        unselectedItemColor: const Color(0xFF64748B),
-        selectedLabelStyle: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, letterSpacing: 0.3),
-        unselectedLabelStyle: const TextStyle(fontSize: 10),
+        selectedItemColor: const Color(0xFF16A34A),
+        unselectedItemColor: const Color(0xFF6B7280),
+        selectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600),
+        unselectedLabelStyle: const TextStyle(fontSize: 12, fontWeight: FontWeight.w500),
+        elevation: 0,
         items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.space_dashboard_outlined, size: 20),
-            activeIcon: Icon(Icons.space_dashboard_rounded, size: 20),
-            label: 'OVERVIEW',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.analytics_outlined, size: 20),
-            activeIcon: Icon(Icons.analytics_rounded, size: 20),
-            label: 'SIMULATION',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.publish_sharp, size: 20),
-            activeIcon: Icon(Icons.publish_rounded, size: 20),
-            label: 'INGESTION',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.timeline_sharp, size: 20),
-            activeIcon: Icon(Icons.timeline_rounded, size: 20),
-            label: 'TRENDS',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.settings_input_component_outlined, size: 20),
-            activeIcon: Icon(Icons.settings_input_component_sharp, size: 20),
-            label: 'CONTROLS',
-          ),
+          BottomNavigationBarItem(icon: Icon(Icons.space_dashboard_outlined), activeIcon: Icon(Icons.space_dashboard_rounded), label: 'Overview'),
+          BottomNavigationBarItem(icon: Icon(Icons.analytics_outlined), activeIcon: Icon(Icons.analytics_rounded), label: 'Simulator'),
+          BottomNavigationBarItem(icon: Icon(Icons.add_box_outlined), activeIcon: Icon(Icons.add_box_rounded), label: 'Ingest'),
+          BottomNavigationBarItem(icon: Icon(Icons.trending_up_rounded), activeIcon: Icon(Icons.trending_up), label: 'Trends'),
+          BottomNavigationBarItem(icon: Icon(Icons.settings_outlined), activeIcon: Icon(Icons.settings_rounded), label: 'Settings'),
         ],
       ),
     );

@@ -22,12 +22,12 @@ class _SplashScreenState extends State<SplashScreen>
   void initState() {
     super.initState();
     _logoController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1000));
+        vsync: this, duration: const Duration(milliseconds: 1200));
     _textController = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 800));
+        vsync: this, duration: const Duration(milliseconds: 1000));
 
-    _logoScale = Tween<double>(begin: 0.4, end: 1.0).animate(
-      CurvedAnimation(parent: _logoController, curve: Curves.elasticOut),
+    _logoScale = Tween<double>(begin: 0.8, end: 1.0).animate(
+      CurvedAnimation(parent: _logoController, curve: Curves.easeOutBack),
     );
     _logoOpacity = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _logoController, curve: Curves.easeIn),
@@ -36,22 +36,22 @@ class _SplashScreenState extends State<SplashScreen>
       CurvedAnimation(parent: _textController, curve: Curves.easeIn),
     );
     _textSlide = Tween<Offset>(
-      begin: const Offset(0, 0.3),
+      begin: const Offset(0, 0.2),
       end: Offset.zero,
     ).animate(
-      CurvedAnimation(parent: _textController, curve: Curves.easeOut),
+      CurvedAnimation(parent: _textController, curve: Curves.easeOutCubic),
     );
 
     _logoController.forward().then((_) {
       _textController.forward();
     });
 
-    Timer(const Duration(milliseconds: 2000), () {
+    Timer(const Duration(milliseconds: 2500), () {
       if (mounted) {
         Navigator.of(context).pushReplacement(
           PageRouteBuilder(
             pageBuilder: (context, animation, secondaryAnimation) => const LoginScreen(),
-            transitionDuration: const Duration(milliseconds: 600),
+            transitionDuration: const Duration(milliseconds: 800),
             transitionsBuilder: (context, anim, secondaryAnim, child) =>
                 FadeTransition(opacity: anim, child: child),
           ),
@@ -69,50 +69,21 @@ class _SplashScreenState extends State<SplashScreen>
 
   @override
   Widget build(BuildContext context) {
-    const prNavy = Color(0xFF1B365D);
-    const scForest = Color(0xFF2D6A4F);
-    
     return Scaffold(
-      backgroundColor: const Color(0xFFF8FAFC),
+      backgroundColor: Colors.white,
       body: Container(
         decoration: const BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
+          gradient: RadialGradient(
+            center: Alignment.center,
+            radius: 1.0,
             colors: [
-              Color(0xFFF8FAFC),
-              Color(0xFFEFF6FF),
-              Color(0xFFE8F5E9), // Gentle hint of green
+              Color(0xFFF9FAFB),
+              Color(0xFFF3F4F6),
             ],
           ),
         ),
         child: Stack(
           children: [
-            // Background wave lines
-            Positioned(
-              top: -100,
-              right: -100,
-              child: Container(
-                width: 350,
-                height: 350,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: prNavy.withOpacity(0.03),
-                ),
-              ),
-            ),
-            Positioned(
-              bottom: -80,
-              left: -80,
-              child: Container(
-                width: 300,
-                height: 300,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: scForest.withOpacity(0.04),
-                ),
-              ),
-            ),
             Center(
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -131,27 +102,24 @@ class _SplashScreenState extends State<SplashScreen>
                       height: 100,
                       decoration: BoxDecoration(
                         shape: BoxShape.circle,
-                        gradient: const LinearGradient(
-                          colors: [prNavy, scForest], // Nice Navy -> Green gradient
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
+                        color: const Color(0xFF10B981),
                         boxShadow: [
                           BoxShadow(
-                            color: prNavy.withOpacity(0.15),
-                            blurRadius: 20,
-                            spreadRadius: 2,
+                            color: const Color(0xFF10B981).withOpacity(0.2),
+                            blurRadius: 30,
+                            spreadRadius: 5,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
                       child: const Icon(
-                        Icons.water_drop_rounded,
+                        Icons.insights_rounded,
                         color: Colors.white,
-                        size: 50,
+                        size: 48,
                       ),
                     ),
                   ),
-                  const SizedBox(height: 28),
+                  const SizedBox(height: 32),
                   AnimatedBuilder(
                     animation: _textController,
                     builder: (_, child) => FadeTransition(
@@ -167,29 +135,19 @@ class _SplashScreenState extends State<SplashScreen>
                           'FloodGuard',
                           style: TextStyle(
                             fontSize: 32,
-                            fontWeight: FontWeight.w900,
-                            color: prNavy,
-                            letterSpacing: 1.0,
+                            fontWeight: FontWeight.w800,
+                            color: Color(0xFF111827),
+                            letterSpacing: -0.5,
                           ),
                         ),
-                        const SizedBox(height: 2),
-                        const Text(
-                          'PAKISTAN',
-                          style: TextStyle(
-                            fontSize: 16,
-                            fontWeight: FontWeight.bold,
-                            color: scForest,
-                            letterSpacing: 4,
-                          ),
-                        ),
-                        const SizedBox(height: 12),
+                        const SizedBox(height: 4),
                         Text(
-                          'National Disaster Management Command Portal',
+                          'PREDICTIVE INTELLIGENCE',
                           style: TextStyle(
-                            fontSize: 12,
-                            fontWeight: FontWeight.w500,
-                            color: const Color(0xFF475569).withOpacity(0.8),
-                            letterSpacing: 0.5,
+                            fontSize: 13,
+                            fontWeight: FontWeight.w700,
+                            color: const Color(0xFF10B981).withOpacity(0.9),
+                            letterSpacing: 2,
                           ),
                         ),
                       ],
@@ -198,18 +156,17 @@ class _SplashScreenState extends State<SplashScreen>
                 ],
               ),
             ),
-            // Bottom indicator
             Positioned(
-              bottom: 50,
+              bottom: 48,
               left: 0,
               right: 0,
               child: Center(
                 child: SizedBox(
-                  width: 32,
-                  height: 32,
+                  width: 24,
+                  height: 24,
                   child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: prNavy.withOpacity(0.7),
+                    strokeWidth: 2.5,
+                    color: const Color(0xFF10B981).withOpacity(0.8),
                   ),
                 ),
               ),

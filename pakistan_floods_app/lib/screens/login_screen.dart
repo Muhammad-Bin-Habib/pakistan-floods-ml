@@ -15,6 +15,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _passcodeCtrl = TextEditingController();
   
   bool _isLoading = false;
+  bool _obscurePassword = true;
   String _errorMessage = '';
 
   void _performLogin() {
@@ -33,7 +34,7 @@ class _LoginScreenState extends State<LoginScreen> {
       AppState().isGovernmentUser = true;
       AppState().userName = _usernameCtrl.text.trim();
 
-      Future.delayed(const Duration(milliseconds: 300), () {
+      Future.delayed(const Duration(milliseconds: 400), () {
         if (mounted) {
           setState(() => _isLoading = false);
           Navigator.of(context).pushReplacement(
@@ -44,257 +45,183 @@ class _LoginScreenState extends State<LoginScreen> {
     } else {
       setState(() {
         _isLoading = false;
-        _errorMessage = 'SECURE LOG: ACCESS DENIED. Invalid security code.';
+        _errorMessage = 'Access denied. Invalid security credentials.';
       });
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    const prNavy = Color(0xFF1B365D);
-    const scForest = Color(0xFF2D6A4F);
-    const bgLight = Color(0xFFF1F5F9);
-    const borderSlate = Color(0xFFCBD5E1);
-    const textDark = Color(0xFF0F172A);
-    const textMuted = Color(0xFF475569);
-
+    const prGreen = Color(0xFF10B981);
+    
     return Scaffold(
-      backgroundColor: bgLight,
+      backgroundColor: const Color(0xFFF9FAFB),
       body: SafeArea(
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 24.0, vertical: 32.0),
-            child: Container(
-              constraints: const BoxConstraints(maxWidth: 400),
+            child: ConstrainedBox(
+              constraints: const BoxConstraints(maxWidth: 420),
               child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // State Emblem/Branding
                   Center(
                     child: Container(
-                      padding: const EdgeInsets.all(12),
+                      padding: const EdgeInsets.all(16),
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: borderSlate, width: 1.5),
+                        shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
-                            color: Colors.black.withOpacity(0.04),
-                            blurRadius: 10,
-                            offset: const Offset(0, 4),
-                          )
-                        ],
-                      ),
-                      child: const Row(
-                        mainAxisSize: MainAxisSize.min,
-                        children: [
-                          Icon(Icons.shield_outlined, color: prNavy, size: 24),
-                          SizedBox(width: 12),
-                          Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text(
-                                'GOVERNMENT OF PAKISTAN',
-                                style: TextStyle(
-                                  fontSize: 10,
-                                  fontWeight: FontWeight.bold,
-                                  letterSpacing: 1.5,
-                                  color: scForest,
-                                ),
-                              ),
-                              Text(
-                                'DISASTER MANAGEMENT AUTHORITY',
-                                style: TextStyle(
-                                  fontSize: 11,
-                                  fontWeight: FontWeight.w800,
-                                  letterSpacing: 0.5,
-                                  color: prNavy,
-                                ),
-                              ),
-                            ],
+                            color: Colors.black.withOpacity(0.05),
+                            blurRadius: 20,
+                            offset: const Offset(0, 10),
                           ),
                         ],
                       ),
+                      child: const Icon(Icons.fingerprint_rounded, color: prGreen, size: 40),
                     ),
+                  ),
+                  const SizedBox(height: 32),
+                  const Text(
+                    'Welcome Back',
+                    style: TextStyle(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w800,
+                      color: Color(0xFF111827),
+                      letterSpacing: -0.5,
+                    ),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: 8),
+                  const Text(
+                    'Enter your credentials to access the NDMA Predictive Intelligence Portal.',
+                    style: TextStyle(fontSize: 14, color: Color(0xFF6B7280), height: 1.5),
+                    textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: 40),
-
-                  const Text(
-                    'NATIONAL DISASTER ANALYTICS COMMAND',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w900,
-                      letterSpacing: 0.8,
-                      color: prNavy,
+                  Container(
+                    padding: const EdgeInsets.all(32),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: BorderRadius.circular(16),
+                      border: Border.all(color: const Color(0xFFF3F4F6), width: 1),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.04),
+                          blurRadius: 24,
+                          offset: const Offset(0, 12),
+                        ),
+                      ],
                     ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 6),
-                  const Text(
-                    'EOC Platform — System Access Control Portal',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: textMuted,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 28),
-
-                  Form(
-                    key: _formKey,
-                    child: Container(
-                      padding: const EdgeInsets.all(24),
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        borderRadius: BorderRadius.circular(4),
-                        border: Border.all(color: borderSlate, width: 1.5),
-                        boxShadow: [
-                          BoxShadow(
-                            color: Colors.black.withOpacity(0.02),
-                            blurRadius: 8,
-                            offset: const Offset(0, 2),
-                          )
-                        ],
-                      ),
+                    child: Form(
+                      key: _formKey,
                       child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
                           const Text(
-                            'SECURE LOGIN REQUEST',
-                            style: TextStyle(
-                              fontSize: 12,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.8,
-                              color: prNavy,
-                            ),
+                            'Officer Designation',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
                           ),
-                          const SizedBox(height: 20),
-
-                          // Designation
-                          const Text(
-                            'Designation / Officer ID',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: textMuted,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
-                          ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           TextFormField(
                             controller: _usernameCtrl,
-                            style: const TextStyle(color: textDark, fontSize: 13, fontFamily: 'monospace'),
+                            style: const TextStyle(fontWeight: FontWeight.w500),
                             validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                  return 'Required field: Officer designation';
-                              }
+                              if (value == null || value.trim().isEmpty) return 'Designation is required';
                               return null;
                             },
                             decoration: const InputDecoration(
-                              filled: true,
-                              fillColor: Color(0xFFF8FAFC),
+                              hintText: 'e.g. Commander Islam',
+                              prefixIcon: Icon(Icons.person_outline_rounded, size: 20, color: Color(0xFF9CA3AF)),
                             ),
                           ),
-                          const SizedBox(height: 16),
-
-                          // Security Passcode
+                          const SizedBox(height: 24),
                           const Text(
-                            'Emergency Security Passcode',
-                            style: TextStyle(
-                              fontSize: 10,
-                              color: textMuted,
-                              fontWeight: FontWeight.bold,
-                              letterSpacing: 0.5,
-                            ),
+                            'Security Passcode',
+                            style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: Color(0xFF374151)),
                           ),
-                          const SizedBox(height: 6),
+                          const SizedBox(height: 8),
                           TextFormField(
                             controller: _passcodeCtrl,
-                            obscureText: true,
-                            style: const TextStyle(color: textDark, fontSize: 13, fontFamily: 'monospace'),
+                            obscureText: _obscurePassword,
+                            style: const TextStyle(fontWeight: FontWeight.w500),
                             validator: (value) {
-                              if (value == null || value.trim().isEmpty) {
-                                return 'Required field: Security Passcode';
-                              }
+                              if (value == null || value.trim().isEmpty) return 'Passcode is required';
                               return null;
                             },
-                            decoration: const InputDecoration(
-                              filled: true,
-                              fillColor: Color(0xFFF8FAFC),
+                            decoration: InputDecoration(
+                              hintText: 'Enter your passcode',
+                              prefixIcon: const Icon(Icons.lock_outline_rounded, size: 20, color: Color(0xFF9CA3AF)),
+                              suffixIcon: IconButton(
+                                icon: Icon(
+                                  _obscurePassword ? Icons.visibility_off_rounded : Icons.visibility_rounded,
+                                  size: 20,
+                                  color: const Color(0xFF9CA3AF),
+                                ),
+                                onPressed: () {
+                                  setState(() {
+                                    _obscurePassword = !_obscurePassword;
+                                  });
+                                },
+                              ),
                             ),
                           ),
-                          const SizedBox(height: 20),
-
+                          
                           if (_errorMessage.isNotEmpty) ...[
+                            const SizedBox(height: 24),
                             Container(
-                              padding: const EdgeInsets.all(10),
+                              padding: const EdgeInsets.all(12),
                               decoration: BoxDecoration(
-                                color: const Color(0xFFC53030).withOpacity(0.08),
-                                borderRadius: BorderRadius.circular(4),
-                                border: Border.all(color: const Color(0xFFC53030).withOpacity(0.3), width: 1.2),
+                                color: const Color(0xFFFEF2F2),
+                                borderRadius: BorderRadius.circular(8),
+                                border: Border.all(color: const Color(0xFFFCA5A5)),
                               ),
-                              child: Text(
-                                _errorMessage,
-                                style: const TextStyle(color: Color(0xFFC53030), fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
+                              child: Row(
+                                children: [
+                                  const Icon(Icons.error_outline_rounded, color: Color(0xFFEF4444), size: 16),
+                                  const SizedBox(width: 8),
+                                  Expanded(
+                                    child: Text(
+                                      _errorMessage,
+                                      style: const TextStyle(color: Color(0xFFB91C1C), fontSize: 13, fontWeight: FontWeight.w500),
+                                    ),
+                                  ),
+                                ],
                               ),
                             ),
-                            const SizedBox(height: 16),
                           ],
-
-                          // Action button
+                          
+                          const SizedBox(height: 32),
                           SizedBox(
-                            height: 40,
+                            height: 48,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _performLogin,
-                              style: ElevatedButton.styleFrom(
-                                backgroundColor: prNavy,
-                                foregroundColor: Colors.white,
-                                elevation: 0,
-                              ),
                               child: _isLoading
                                   ? const SizedBox(
-                                      width: 16,
-                                      height: 16,
-                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2),
+                                      width: 20,
+                                      height: 20,
+                                      child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2.5),
                                     )
-                                  : const Text('AUTHENTICATE REQUEST & ENTER'),
+                                  : const Text('Sign In'),
                             ),
                           ),
                         ],
                       ),
                     ),
                   ),
-
-                  const SizedBox(height: 16),
-                  
-                  // Official Notice & Build-time warning (Accessibility & compliance)
-                  Container(
-                    padding: const EdgeInsets.all(12),
-                    decoration: BoxDecoration(
-                      color: const Color(0xFFEFF6FF), // Soft blue
-                      borderRadius: BorderRadius.circular(4),
-                      border: Border.all(color: const Color(0xFFBFDBFE), width: 1),
-                    ),
-                    child: const Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Row(
-                          children: [
-                            Icon(Icons.info_outline, color: prNavy, size: 14),
-                            SizedBox(width: 8),
-                            Text(
-                              'DEVELOPMENT DEPLOYMENT FLAG',
-                              style: TextStyle(color: prNavy, fontSize: 10, fontWeight: FontWeight.bold),
-                            ),
-                          ],
-                        ),
-                        SizedBox(height: 6),
-                        Text(
-                          'Temporary Passcode: ndma2024. For test validation purposes only. Strip credential flags prior to staging production release.',
-                          style: TextStyle(color: textMuted, fontSize: 10, height: 1.4),
-                        ),
-                      ],
-                    ),
+                  const SizedBox(height: 24),
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      const Icon(Icons.shield_rounded, color: Color(0xFF9CA3AF), size: 14),
+                      const SizedBox(width: 6),
+                      const Text(
+                        'Restricted Area. Authorized Access Only (Test: ndma2024)',
+                        style: TextStyle(color: Color(0xFF6B7280), fontSize: 12, fontWeight: FontWeight.w500),
+                      ),
+                    ],
                   ),
                 ],
               ),

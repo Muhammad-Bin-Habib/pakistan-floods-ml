@@ -4,550 +4,133 @@ import '../models/app_state.dart';
 
 class AnalystSimulationTab extends StatefulWidget {
   const AnalystSimulationTab({super.key});
-
   @override
   State<AnalystSimulationTab> createState() => _AnalystSimulationTabState();
 }
 
 class _AnalystSimulationTabState extends State<AnalystSimulationTab> {
   final _formKey = GlobalKey<FormState>();
-
-  // Estimator fields
-  double _simulationYear = 2026;
+  double _simulationYear = 2026, _housesSwamped = 2200, _totalFatalities = 45, _totalInjured = 120, _roadsDestroyed = 180, _bridgesBlown = 6, _livestockLosses = 1400;
   String _selectedRegion = 'Sindh';
-  double _housesSwamped = 2200;
-  double _totalFatalities = 45;
-  double _totalInjured = 120;
-  double _roadsDestroyed = 180;
-  double _bridgesBlown = 6;
-  double _livestockLosses = 1400;
-
+  String _activePreset = 'Baseline';
   bool _isProcessing = false;
   double? _predictedAffected;
 
-  // Active calibration bounds preset
-  String _activePreset = 'Baseline';
-
-  void _loadPreset(String presetName, String region, double year, double hs, double f, double injured, double rd, double bb, double ls) {
+  void _load(String n, String r, double h, double f, double rd, double bb, double ls) {
     setState(() {
-      _activePreset = presetName;
-      _selectedRegion = region;
-      _simulationYear = year;
-      _housesSwamped = hs;
-      _totalFatalities = f;
-      _totalInjured = injured;
-      _roadsDestroyed = rd;
-      _bridgesBlown = bb;
-      _livestockLosses = ls;
+      _activePreset = n; _selectedRegion = r; _housesSwamped = h; _totalFatalities = f; _roadsDestroyed = rd; _bridgesBlown = bb; _livestockLosses = ls;
     });
-
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(
-        backgroundColor: Colors.white,
-        shape: const RoundedRectangleBorder(
-          side: BorderSide(color: Color(0xFF1B365D), width: 1.5),
-        ),
-        content: Text(
-          'LOADED PROFILE: ${presetName.toUpperCase()} COEFFICIENT BOUNDS',
-          style: const TextStyle(color: Color(0xFF1B365D), fontSize: 10, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-        ),
-        duration: const Duration(milliseconds: 800),
-      ),
-    );
   }
 
-  Future<void> _calculateProjections() async {
+  void _calc() async {
     if (!_formKey.currentState!.validate()) return;
     _formKey.currentState!.save();
-
-    setState(() {
-      _isProcessing = true;
-      _predictedAffected = null;
+    setState(() => _isProcessing = true);
+    final res = await ApiService.predict(AppState().serverIp, {
+      'Year': _simulationYear.toInt(), 'Region': _selectedRegion, 'Total_deaths': _totalFatalities.toInt(),
+      'Total_injured': _totalInjured.toInt(), 'Roads_damaged_km': _roadsDestroyed,
+      'Bridges_damaged': _bridgesBlown.toInt(), 'Houses_damaged': _housesSwamped.toInt(), 'Livestock_damaged': _livestockLosses.toInt(),
     });
-
-    final ip = AppState().serverIp;
-    
-    final payload = {
-      'Year': _simulationYear.toInt(),
-      'Region': _selectedRegion,
-      'Total_deaths': _totalFatalities.toInt(),
-      'Total_injured': _totalInjured.toInt(),
-      'Roads_damaged_km': _roadsDestroyed,
-      'Bridges_damaged': _bridgesBlown.toInt(),
-      'Houses_damaged': _housesSwamped.toInt(),
-      'Livestock_damaged': _livestockLosses.toInt(),
-    };
-
-    final res = await ApiService.predict(ip, payload);
-
-    if (mounted) {
-      setState(() {
-        _isProcessing = false;
-        if (res['success'] == true) {
-          _predictedAffected = double.tryParse((res['predicted_affected'] ?? res['predicted_affected_population'])?.toString() ?? '');
-        } else {
-          // Fallback simulation: Linear sum model based on verified factors (R²=0.63 calibration)
-          _predictedAffected = (_housesSwamped * 5.8) +
-              (_totalFatalities * 22.0) +
-              (_roadsDestroyed * 12.0) +
-              (_bridgesBlown * 50.0) +
-              (_livestockLosses * 0.3) +
-              450;
-        }
-      });
-    }
+    setState(() {
+      _isProcessing = false;
+      _predictedAffected = res['success'] == true 
+          ? double.tryParse(res['predicted_affected_population']?.toString() ?? res['prediction']?.toString() ?? res['predicted_affected']?.toString() ?? '0') 
+          : (_housesSwamped*5 + 450);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
-    const prNavy = Color(0xFF1B365D);
-    const borderSlate = Color(0xFFCBD5E1);
-
     return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 20),
+      padding: const EdgeInsets.all(24),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Section title
-          const Text(
-            'MODEL CALIBRATION PRESETS',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF64748B),
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 8),
-
-          // Preset Horizontal Bar
+          const Text('Simulation Engine', style: TextStyle(fontSize: 24, fontWeight: FontWeight.w700, color: Color(0xFF111827))),
+          const SizedBox(height: 24),
+          
           SingleChildScrollView(
             scrollDirection: Axis.horizontal,
             child: Row(
               children: [
-                _buildPresetChip('Baseline Swell', 'Sindh', 2026, 2200, 45, 120, 180, 6, 1400),
-                const SizedBox(width: 8),
-                _buildPresetChip('Monsoon High Vector', 'Sindh', 2026, 9800, 245, 650, 620, 18, 5600),
-                const SizedBox(width: 8),
-                _buildPresetChip('Flash Flood Surge', 'Balochistan', 2026, 14500, 480, 1200, 890, 45, 12000),
-                const SizedBox(width: 8),
-                _buildPresetChip('Glacier Breaches (GB/KP)', 'KP', 2026, 850, 20, 60, 75, 12, 450),
-              ],
-            ),
-          ),
-          const SizedBox(height: 20),
-
-          const Text(
-            'LOGISTICAL IMPACT INPUT MATRIX',
-            style: TextStyle(
-              fontSize: 10,
-              fontWeight: FontWeight.w900,
-              color: Color(0xFF64748B),
-              letterSpacing: 1.0,
-            ),
-          ),
-          const SizedBox(height: 10),
-
-          Form(
-            key: _formKey,
-            child: Container(
-              padding: const EdgeInsets.all(16),
-              decoration: BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.circular(4),
-                border: Border.all(color: borderSlate, width: 1.5),
-                boxShadow: [
-                  BoxShadow(
-                    color: Colors.black.withOpacity(0.02),
-                    blurRadius: 6,
-                    offset: const Offset(0, 2),
-                  )
-                ],
-              ),
-              child: Column(
-                children: [
-                  Row(
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            const Text(
-                              'Simulation Region',
-                              style: TextStyle(fontSize: 9, color: Color(0xFF475569), fontWeight: FontWeight.bold, letterSpacing: 0.5),
-                            ),
-                            const SizedBox(height: 6),
-                            DropdownButtonFormField<String>(
-                              key: ValueKey('$_activePreset-region-$_selectedRegion'),
-                              value: _selectedRegion,
-                              decoration: const InputDecoration(
-                                filled: true,
-                                fillColor: Color(0xFFF8FAFC),
-                              ),
-                              style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontWeight: FontWeight.bold),
-                              items: const [
-                                DropdownMenuItem(value: 'Sindh', child: Text('Sindh (55.69M Ceiling)')),
-                                DropdownMenuItem(value: 'Punjab', child: Text('Punjab (127.69M Ceiling)')),
-                                DropdownMenuItem(value: 'KP', child: Text('KP (40.85M Ceiling)')),
-                                DropdownMenuItem(value: 'Balochistan', child: Text('Balochistan (14.89M Ceiling)')),
-                              ],
-                              onChanged: (val) {
-                                if (val != null) {
-                                  setState(() {
-                                    _selectedRegion = val;
-                                  });
-                                }
-                              },
-                            ),
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Simulation Year',
-                          initialVal: _simulationYear,
-                          onSave: (v) => _simulationYear = v,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Houses Swamped (H_D)',
-                          initialVal: _housesSwamped,
-                          onSave: (v) => _housesSwamped = v,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Total Fatalities (T_D)',
-                          initialVal: _totalFatalities,
-                          onSave: (v) => _totalFatalities = v,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Total Injured (T_I)',
-                          initialVal: _totalInjured,
-                          onSave: (v) => _totalInjured = v,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Road Systems (km) (R_D)',
-                          initialVal: _roadsDestroyed,
-                          onSave: (v) => _roadsDestroyed = v,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 12),
-                  Row(
-                    children: [
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Bridges Blown (B_D)',
-                          initialVal: _bridgesBlown,
-                          onSave: (v) => _bridgesBlown = v,
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: _buildInputField(
-                          label: 'Livestock Lost (L_D)',
-                          initialVal: _livestockLosses,
-                          onSave: (v) => _livestockLosses = v,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: 20),
-
-                  SizedBox(
-                    height: 40,
-                    child: ElevatedButton.icon(
-                      onPressed: _isProcessing ? null : _calculateProjections,
-                      icon: const Icon(Icons.calculate_sharp, size: 16),
-                      label: const Text('CALCULATE AFFECTED PROJECTIONS'),
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: prNavy,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
+                 _pill('Baseline', 'Sindh', 2200, 45, 180, 6, 1400), const SizedBox(width: 8),
+                 _pill('Monsoon High', 'Sindh', 9800, 245, 620, 18, 5600), const SizedBox(width: 8),
+                 _pill('Flash Surge', 'Balochistan', 14500, 480, 890, 45, 12000),
+              ]
             ),
           ),
           const SizedBox(height: 24),
 
-          if (_isProcessing)
-            const Center(
+          Form(
+            key: _formKey,
+            child: Container(
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFFE5E7EB))),
               child: Column(
                 children: [
-                  CircularProgressIndicator(color: Color(0xFF1B365D)),
-                  SizedBox(height: 10),
-                  Text('Processing regional estimation formulas...', style: TextStyle(color: Color(0xFF475569), fontSize: 10, fontFamily: 'monospace')),
-                ],
-              ),
-            ),
-
-          if (_predictedAffected != null) ...[
-            _buildReportSection(_predictedAffected!),
-          ],
-        ],
-      ),
-    );
-  }
-
-  Widget _buildPresetChip(String name, String region, double year, double hs, double f, double injured, double rd, double bb, double ls) {
-    final bool isSelected = _activePreset == name;
-    const prNavy = Color(0xFF1B365D);
-    const borderSlate = Color(0xFFCBD5E1);
-
-    return ActionChip(
-      label: Text(name.toUpperCase()),
-      onPressed: () => _loadPreset(name, region, year, hs, f, injured, rd, bb, ls),
-      backgroundColor: isSelected ? prNavy : Colors.white,
-      side: BorderSide(color: isSelected ? prNavy : borderSlate, width: 1.2),
-      labelStyle: TextStyle(
-        color: isSelected ? Colors.white : const Color(0xFF0F172A),
-        fontSize: 9,
-        fontWeight: FontWeight.bold,
-        letterSpacing: 0.3,
-      ),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(4)),
-      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 4),
-    );
-  }
-
-  Widget _buildInputField({
-    required String label,
-    required double initialVal,
-    required ValueChanged<double> onSave,
-  }) {
-    // We override key dynamic controller states upon preset updates
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          label.toUpperCase(),
-          style: const TextStyle(fontSize: 9, color: Color(0xFF475569), fontWeight: FontWeight.bold, letterSpacing: 0.5),
-        ),
-        const SizedBox(height: 6),
-        // Use a Key to force rebuild on external state swaps
-        TextFormField(
-          key: ValueKey('$_activePreset-$label-$initialVal'),
-          initialValue: initialVal.toStringAsFixed(0),
-          keyboardType: TextInputType.number,
-          style: const TextStyle(color: Color(0xFF0F172A), fontSize: 13, fontFamily: 'monospace', fontWeight: FontWeight.bold),
-          validator: (value) {
-            if (value == null || double.tryParse(value) == null) {
-              return 'Required numeric variable';
-            }
-            if (double.parse(value) < 0) {
-              return 'Negative limits forbidden';
-            }
-            return null;
-          },
-          onSaved: (value) {
-            if (value != null) {
-              final parsed = double.tryParse(value);
-              if (parsed != null) {
-                onSave(parsed);
-              }
-            }
-          },
-          decoration: const InputDecoration(
-            filled: true,
-            fillColor: Color(0xFFF8FAFC),
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildReportSection(double affected) {
-    // Model uncertainty display: 95% Confidence Interval (±15% dispersion boundaries)
-    final minAffected = (affected * 0.85).round();
-    final maxAffected = (affected * 1.15).round();
-
-    final tendersNeededMin = (minAffected / 6.0).round();
-    final tendersNeededMax = (maxAffected / 6.0).round();
-
-    final waterLitersMin = (minAffected * 15.0).round();
-    final waterLitersMax = (maxAffected * 15.0).round();
-
-    final campUnitsMin = (minAffected / 80.0).round();
-    final campUnitsMax = (maxAffected / 80.0).round();
-
-    const borderSlate = Color(0xFFCBD5E1);
-    const prNavy = Color(0xFF1B365D);
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Text(
-          '95% CONFIDENCE RUNTIME ESTIMATION',
-          style: TextStyle(
-            fontSize: 10,
-            fontWeight: FontWeight.w900,
-            color: Color(0xFF64748B),
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 8),
-
-        Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.circular(4),
-            border: Border.all(color: borderSlate, width: 1.5),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.02),
-                blurRadius: 6,
-                offset: const Offset(0, 2),
+                  Row(children: [Expanded(child: _inp('Swamped', _housesSwamped, (v)=>_housesSwamped=v)), const SizedBox(width: 16), Expanded(child: _inp('Fatalities', _totalFatalities, (v)=>_totalFatalities=v))]),
+                  const SizedBox(height: 16),
+                  Row(children: [Expanded(child: _inp('Roads', _roadsDestroyed, (v)=>_roadsDestroyed=v)), const SizedBox(width: 16), Expanded(child: _inp('Bridges', _bridgesBlown, (v)=>_bridgesBlown=v))]),
+                  const SizedBox(height: 32),
+                  ElevatedButton(
+                    onPressed: _isProcessing ? null : _calc,
+                    child: _isProcessing ? const CircularProgressIndicator(color: Colors.white) : const Text('Calculate Affected Projections'),
+                  )
+                ]
               )
-            ],
+            )
           ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: [
-              // Dynamic Range affected block
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  const Text(
-                    'DISPLACED CITIZEN ESTIMATE:',
-                    style: TextStyle(color: Color(0xFF0F172A), fontSize: 11, fontWeight: FontWeight.bold),
-                  ),
-                  Text(
-                    '${minAffected.toString()} - ${maxAffected.toString()}',
-                    style: const TextStyle(color: prNavy, fontSize: 15, fontWeight: FontWeight.bold, fontFamily: 'monospace'),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 6),
-              ClipRRect(
-                borderRadius: BorderRadius.circular(2),
-                child: LinearProgressIndicator(
-                  value: 0.72,
-                  backgroundColor: const Color(0xFFEDF2F7),
-                  color: prNavy,
-                  minHeight: 6,
-                ),
-              ),
-              const SizedBox(height: 6),
-              const Text(
-                'MODEL CONFIDENCE RANGE: R²=63.2% calibrated regression model with standard ±15% variance boundaries.',
-                style: TextStyle(color: Color(0xFF475569), fontSize: 8.5, height: 1.3),
-              ),
-              const SizedBox(height: 16),
-              const Divider(color: borderSlate, height: 1),
-              const SizedBox(height: 16),
+          
+          if (_predictedAffected != null) ...[
+             const SizedBox(height: 32),
+             const Text('Intelligence Dispatch', style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600, color: Color(0xFF111827))),
+             const SizedBox(height: 16),
+             Container(
+               padding: const EdgeInsets.all(24),
+               decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(16), border: Border.all(color: const Color(0xFF2563EB).withOpacity(0.2))),
+               child: Column(
+                 crossAxisAlignment: CrossAxisAlignment.start,
+                 children: [
+                   Text('${(_predictedAffected! * 0.85).round()} – ${(_predictedAffected! * 1.15).round()}', style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Color(0xFF2563EB))),
+                   const Text('Estimated displaced population envelope', style: TextStyle(color: Color(0xFF6B7280), fontSize: 14)),
+                 ]
+               )
+             )
+          ]
+        ],
+      )
+    );
+  }
 
-              // Operational Logistics Cards
-              const Text(
-                'EOC LOGISTICS EMERGENCY DISPATCH PROTOCOLS',
-                style: TextStyle(fontSize: 9, fontWeight: FontWeight.bold, color: Color(0xFF64748B), letterSpacing: 0.5),
-              ),
-              const SizedBox(height: 10),
-
-              Row(
-                children: [
-                  Expanded(
-                    child: _buildLogisticCard(
-                      label: 'TENTS REQ (UNIT RANGE)',
-                      value: '$tendersNeededMin - $tendersNeededMax',
-                      sub: 'Based on 6 persons/shelter',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _buildLogisticCard(
-                      label: 'WATER (LITERS/DAY)',
-                      value: '$waterLitersMin - $waterLitersMax',
-                      sub: 'Min 15L survival supply/head',
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 8),
-              _buildLogisticCardWidth(
-                label: 'ESTABLISHED MEDICAL CLINIC ZONES',
-                value: '$campUnitsMin - $campUnitsMax REGIONAL CAMPS',
-                sub: '80 affected density deployment threshold ratios',
-              ),
-            ],
-          ),
+  Widget _pill(String label, String r, double h, double f, double rd, double bb, double ls) {
+    bool active = _activePreset == label;
+    return GestureDetector(
+      onTap: () => _load(label, r, h, f, rd, bb, ls),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+        decoration: BoxDecoration(
+          color: active ? const Color(0xFF16A34A) : Colors.white,
+          border: Border.all(color: active ? const Color(0xFF16A34A) : const Color(0xFFE5E7EB)),
+          borderRadius: BorderRadius.circular(8),
         ),
-      ],
-    );
-  }
-
-  Widget _buildLogisticCard({required String label, required String value, required String sub}) {
-    const borderSlate = Color(0xFFCBD5E1);
-    
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: Border.all(color: borderSlate, width: 1.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-          const SizedBox(height: 4),
-          Text(value, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Color(0xFF1B365D), fontFamily: 'monospace')),
-          const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 7.5, color: Color(0xFF64748B))),
-        ],
+        child: Text(label, style: TextStyle(fontSize: 13, fontWeight: FontWeight.w600, color: active ? Colors.white : const Color(0xFF4B5563))),
       ),
     );
   }
 
-  Widget _buildLogisticCardWidth({required String label, required String value, required String sub}) {
-    const borderSlate = Color(0xFFCBD5E1);
-
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-      decoration: BoxDecoration(
-        color: const Color(0xFFF8FAFC),
-        border: Border.all(color: borderSlate, width: 1.2),
-        borderRadius: BorderRadius.circular(4),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(label, style: const TextStyle(fontSize: 8.5, fontWeight: FontWeight.bold, color: Color(0xFF475569))),
-          const SizedBox(height: 4),
-          Row(
-            mainAxisAlignment: MainAxisAlignment.spaceBetween,
-            children: [
-              Text(value, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, color: Color(0xFF1B365D), fontFamily: 'monospace')),
-              const Icon(Icons.emergency_sharp, color: Color(0xFFC53030), size: 14),
-            ],
-          ),
-          const SizedBox(height: 2),
-          Text(sub, style: const TextStyle(fontSize: 7.5, color: Color(0xFF64748B))),
-        ],
-      ),
+  Widget _inp(String l, double ini, ValueChanged<double> oc) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(l, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w600)),
+        const SizedBox(height: 8),
+        TextFormField(
+          key: ValueKey('$_activePreset-$l-$ini'),
+          initialValue: ini.toStringAsFixed(0),
+          decoration: const InputDecoration(contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)),
+          onSaved: (v) { if (v != null) oc(double.parse(v)); }
+        )
+      ]
     );
   }
 }

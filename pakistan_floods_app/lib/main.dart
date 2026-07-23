@@ -18,74 +18,100 @@ class FloodGuardApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // NDMA-inspired Whites, Blues, and Greens Color Scheme
-    const prNavy = Color(0xFF1B365D); // Deep Prussian/Navy Blue
-    const scForest = Color(0xFF2D6A4F); // Serious NDMA Green
-    const bgLight = Color(0xFFF8FAFC); // Clean Slate White background
-    const surfaceWhite = Color(0xFFFFFFFF); // Crisp surface cards
+    const prGreen = Color(0xFF16A34A);
+    const bgWhite = Color(0xFFF8FAFC);
+    const surfaceWhite = Color(0xFFFFFFFF);
+    const errorColor = Color(0xFFEF4444);
 
     return MaterialApp(
       title: 'FloodGuard Pakistan',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         brightness: Brightness.light,
-        fontFamily: 'Roboto',
-        primaryColor: prNavy,
-        scaffoldBackgroundColor: bgLight,
+        fontFamily: 'Inter',
+        primaryColor: prGreen,
+        scaffoldBackgroundColor: bgWhite,
         colorScheme: const ColorScheme.light(
-          primary: prNavy,
-          secondary: scForest,
+          primary: prGreen,
+          onPrimary: Colors.white,
+          secondary: Color(0xFF2563EB),
           surface: surfaceWhite,
-          error: Color(0xFFC53030), // Colorblind-accessible red
+          onSurface: Color(0xFF111827),
+          error: errorColor,
         ),
         appBarTheme: const AppBarTheme(
           backgroundColor: surfaceWhite,
-          elevation: 1,
+          elevation: 0,
+          scrolledUnderElevation: 0,
           centerTitle: false,
-          titleTextStyle: TextStyle(
-            color: prNavy,
-            fontSize: 16,
-            fontWeight: FontWeight.bold,
-          ),
-          iconTheme: IconThemeData(color: prNavy),
+          surfaceTintColor: Colors.transparent,
+          iconTheme: IconThemeData(color: Color(0xFF111827)),
         ),
-        cardTheme: const CardThemeData(
+        cardTheme: CardThemeData(
           color: surfaceWhite,
+          elevation: 0,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(16),
+            side: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+          ),
           margin: EdgeInsets.zero,
-        ),
-        textTheme: const TextTheme(
-          bodyLarge: TextStyle(color: Color(0xFF0F172A), fontSize: 14),
-          bodyMedium: TextStyle(color: Color(0xFF475569), fontSize: 13),
         ),
         elevatedButtonTheme: ElevatedButtonThemeData(
           style: ElevatedButton.styleFrom(
-            backgroundColor: prNavy,
+            backgroundColor: prGreen,
             foregroundColor: Colors.white,
+            elevation: 0,
+            minimumSize: const Size.fromHeight(52),
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.all(Radius.circular(4)), // Unified geometric corners
+              borderRadius: BorderRadius.circular(14),
             ),
-            minimumSize: const Size(double.infinity, 44),
-            textStyle: const TextStyle(fontSize: 13, fontWeight: FontWeight.bold, letterSpacing: 0.5),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600, letterSpacing: 0.2),
+          ).copyWith(
+            elevation: WidgetStateProperty.resolveWith<double>((states) {
+              if (states.contains(WidgetState.hovered)) return 2;
+              return 0;
+            }),
+            backgroundColor: WidgetStateProperty.resolveWith<Color>((states) {
+              if (states.contains(WidgetState.pressed)) return const Color(0xFF15803D);
+              if (states.contains(WidgetState.hovered)) return const Color(0xFF15803D);
+              return prGreen;
+            }),
           ),
         ),
-        inputDecorationTheme: const InputDecorationTheme(
+        outlinedButtonTheme: OutlinedButtonThemeData(
+          style: OutlinedButton.styleFrom(
+            minimumSize: const Size.fromHeight(52),
+            shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            side: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
+            textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
+            foregroundColor: const Color(0xFF111827),
+          ),
+        ),
+        inputDecorationTheme: InputDecorationTheme(
           filled: true,
-          fillColor: Color(0xFFF1F5F9), // Light background for inputs
+          fillColor: surfaceWhite,
+          hoverColor: surfaceWhite,
+          floatingLabelBehavior: FloatingLabelBehavior.never,
           border: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4)),
-            borderSide: BorderSide(color: Color(0xFFCBD5E1), width: 1),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
           ),
           enabledBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4)),
-            borderSide: BorderSide(color: Color(0xFFE2E8F0), width: 1),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFE5E7EB), width: 1),
           ),
           focusedBorder: OutlineInputBorder(
-            borderRadius: BorderRadius.all(Radius.circular(4)),
-            borderSide: BorderSide(color: prNavy, width: 1.5),
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: prGreen, width: 2),
           ),
-          hintStyle: TextStyle(color: Color(0xFF94A3B8), fontSize: 12),
-          contentPadding: EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(color: errorColor, width: 1),
+          ),
+          contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
         ),
+        dividerTheme: const DividerThemeData(color: Color(0xFFE5E7EB), thickness: 1),
       ),
       home: const SplashScreen(),
     );
